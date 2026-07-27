@@ -62,8 +62,28 @@ export async function seed() {
 
   const [patient, patient2] = await Patient.bulkCreate(
     [
-      { userId: patientUser.id, age: 32, gender: 'Female', phone: '+91 98765 12345', address: 'Bengaluru, KA' },
-      { userId: patientUser2.id, age: 41, gender: 'Male', phone: '+91 98111 22334', address: 'Mumbai, MH' }
+      {
+        userId: patientUser.id,
+        age: 32,
+        gender: 'Female',
+        phone: '+91 98765 12345',
+        address: 'Bengaluru, KA',
+        state: 'Maharashtra',
+        district: 'Gondia',
+        taluka: 'Tirora',
+        village: 'Mundikota'
+      },
+      {
+        userId: patientUser2.id,
+        age: 41,
+        gender: 'Male',
+        phone: '+91 98111 22334',
+        address: 'Mumbai, MH',
+        state: 'Maharashtra',
+        district: 'Nagpur',
+        taluka: 'Hingna',
+        village: 'Sawangi'
+      }
     ],
     { returning: true }
   );
@@ -95,11 +115,42 @@ export async function seed() {
       doctorId: doctor1.id,
       availableDate: new Date().toISOString().slice(0, 10),
       startTime: '10:30',
-      endTime: '11:00'
+      endTime: '11:00',
+      state: 'Maharashtra',
+      district: 'Gondia',
+      taluka: 'Tirora',
+      village: 'Mundikota'
     },
-    { doctorId: doctor1.id, availableDate: futureDate, startTime: '11:00', endTime: '11:30' },
-    { doctorId: doctor1.id, availableDate: futureDate, startTime: '13:30', endTime: '14:00' },
-    { doctorId: doctor2.id, availableDate: futureDate, startTime: '12:30', endTime: '13:00' }
+    {
+      doctorId: doctor1.id,
+      availableDate: futureDate,
+      startTime: '11:00',
+      endTime: '11:30',
+      state: 'Maharashtra',
+      district: 'Gondia',
+      taluka: 'Tirora',
+      village: 'Mundikota'
+    },
+    {
+      doctorId: doctor1.id,
+      availableDate: futureDate,
+      startTime: '13:30',
+      endTime: '14:00',
+      state: 'Maharashtra',
+      district: 'Gondia',
+      taluka: 'Tirora',
+      village: 'Mundikota'
+    },
+    {
+      doctorId: doctor2.id,
+      availableDate: futureDate,
+      startTime: '12:30',
+      endTime: '13:00',
+      state: 'Maharashtra',
+      district: 'Nagpur',
+      taluka: 'Hingna',
+      village: 'Sawangi'
+    }
   ]);
 
   await Appointment.bulkCreate([

@@ -7,6 +7,7 @@ import Badge from '../components/Badge';
 import { useAuth } from '../state/AuthContext';
 import { createAppointment, deleteAppointment, fetchAppointments, updateAppointment } from '../api/appointments';
 import { fetchAvailability } from '../api/availability';
+import { formatShortLocation, formatTimeRange } from '../utils/formatters';
 
 export default function AppointmentPage() {
   const { user } = useAuth();
@@ -219,7 +220,7 @@ export default function AppointmentPage() {
                 <option value="">{slotsLoading ? 'Loading slots...' : 'Select slot'}</option>
                 {slots.map((slot) => (
                   <option key={slot.id} value={slot.startTime}>
-                    {slot.startTime} - {slot.endTime}
+                    {formatTimeRange(slot)} • {formatShortLocation(slot)}
                   </option>
                 ))}
               </select>

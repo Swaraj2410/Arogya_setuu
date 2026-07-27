@@ -1,6 +1,8 @@
-# Smart Hospital Appointment and Record Management System
+# Arogya Rural
 
-A full-stack healthcare web application for patient appointment booking, doctor availability management,
+Rural doctor scheduling and digital health records.
+
+A full-stack healthcare web application for village-based doctor schedule publishing, patient appointment booking,
 medical records, prescriptions, notifications, and admin reports.
 
 The project is built as a Software Engineering academic project with real database-backed workflows. The
@@ -10,10 +12,10 @@ prescriptions, and patients view those records from the database.
 
 ## Project Summary
 
-The Smart Hospital Appointment and Record Management System solves common hospital workflow problems:
+Arogya Rural solves common rural healthcare workflow problems:
 
-- Patients need a simple way to find doctors and book valid appointment slots.
-- Doctors need to manage availability and view upcoming visits.
+- Patients need a simple way to see doctor visits for their registered village and book valid appointment slots.
+- Doctors need to publish village availability and view upcoming visits.
 - Hospitals need reliable appointment lifecycle tracking.
 - Medical records and prescriptions should be stored digitally and accessed securely.
 - Admins need summary reports for hospital activity.
@@ -31,8 +33,10 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 ### Patient Features
 
 - Patient registration and login.
-- Patient dashboard with upcoming appointments, records, and doctors.
+- Patient registration with state, district, taluka, and village.
+- Patient dashboard with upcoming appointments, records, doctors, and village visit schedules.
 - Real doctor search by name or specialization.
+- Doctor schedule discovery for the patient's registered village.
 - Appointment booking using real doctor availability slots.
 - Appointment rescheduling using available slots.
 - Appointment cancellation.
@@ -46,7 +50,7 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 
 - Doctor registration and login.
 - Doctor dashboard with statistics, upcoming visits, availability, and recent notes.
-- Doctor availability slot creation.
+- Doctor availability slot creation with state, district, taluka, village, date, start time, and end time.
 - Doctor availability slot deletion when not booked.
 - Upcoming appointment queue.
 - Complete visit workflow.
@@ -69,9 +73,9 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 ### Appointment Booking Flow
 
 1. Doctor logs in.
-2. Doctor adds availability slots with date, start time, and end time.
+2. Doctor adds availability slots with state, district, taluka, village, date, start time, and end time.
 3. Patient logs in.
-4. Patient selects doctor and date.
+4. Patient sees schedules for their registered village or selects a doctor and date.
 5. System loads only open slots from the database.
 6. Patient books one available slot.
 7. Backend checks:
@@ -218,6 +222,8 @@ Important relationships:
 - One `Doctor` has many `MedicalRecords`.
 - One `MedicalRecord` has many `Prescriptions`.
 - One `User` has many `Notifications`.
+- `Patient` stores state, district, taluka, and village.
+- `DoctorAvailability` stores the village location for each published schedule.
 
 ## API Overview
 
@@ -291,7 +297,7 @@ cd backend
 npm install
 ```
 
-Create `backend/.env` using the expected values:
+Create `backend/.env` from `backend/.env.example`, keeping `DB_PASS` aligned with your MySQL password:
 
 ```env
 PORT=5001
@@ -315,6 +321,12 @@ Seed/reset the database:
 
 ```bash
 npm run seed
+```
+
+For an existing MySQL database, add the rural location columns without recreating tables:
+
+```bash
+npm run migrate:rural
 ```
 
 The local API runs at:
@@ -374,8 +386,10 @@ npm test
 Current tested workflows include:
 
 - Login and bad credential rejection.
+- Patient registration with rural location validation.
 - Patient-scoped appointment listing.
 - Appointment booking.
+- Location-based doctor availability creation and filtering.
 - Registered doctor details in booking response.
 - Appointment deletion disappearing from doctor list.
 - Doctor completion with medical record and prescription.

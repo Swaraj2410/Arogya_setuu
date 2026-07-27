@@ -6,6 +6,13 @@ import { sequelize } from '../models/index.js';
 let token;
 let doctorToken;
 
+const villageLocation = {
+  state: 'Maharashtra',
+  district: 'Gondia',
+  taluka: 'Tirora',
+  village: 'Mundikota'
+};
+
 beforeAll(async () => {
   await seed();
   const [patientRes, doctorRes] = await Promise.all([
@@ -51,7 +58,7 @@ describe('Appointments', () => {
     const availabilityRes = await request(app)
       .post('/api/availability')
       .set('Authorization', `Bearer ${doctorRes.body.token}`)
-      .send({ doctorId, availableDate: futureDate, startTime: '12:30', endTime: '13:00' });
+      .send({ doctorId, availableDate: futureDate, startTime: '12:30', endTime: '13:00', ...villageLocation });
     expect(availabilityRes.status).toBe(201);
 
     const res = await request(app)
@@ -62,6 +69,23 @@ describe('Appointments', () => {
     expect(res.status).toBe(201);
     expect(res.body.doctorId).toBe(doctorId);
     expect(res.body.Doctor.User.name).toBe('Swaraj');
+  });
+
+  it('books an appointment against an availability record with village location', async () => {
+    const availabilityRes = await request(app)
+      .post('/api/availability')
+      .set('Authorization', `Bearer ${doctorToken}`)
+      .send({ doctorId: 1, availableDate: futureDate, startTime: '16:30', endTime: '17:00', ...villageLocation });
+    expect(availabilityRes.status).toBe(201);
+    expect(availabilityRes.body.village).toBe('Mundikota');
+
+    const res = await request(app)
+      .post('/api/appointments')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ patientId: 1, doctorId: 1, appointmentDate: futureDate, appointmentTime: '16:30', reason: 'Village OPD' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('booked');
   });
 
   it('lets a patient delete an appointment so it no longer appears for the doctor', async () => {
@@ -87,7 +111,7 @@ describe('Appointments', () => {
     const availabilityRes = await request(app)
       .post('/api/availability')
       .set('Authorization', `Bearer ${doctorToken}`)
-      .send({ doctorId: 1, availableDate: futureDate, startTime: '14:30', endTime: '15:00' });
+      .send({ doctorId: 1, availableDate: futureDate, startTime: '14:30', endTime: '15:00', ...villageLocation });
     expect(availabilityRes.status).toBe(201);
 
     const createRes = await request(app)

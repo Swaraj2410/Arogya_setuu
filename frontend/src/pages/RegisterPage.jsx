@@ -21,7 +21,11 @@ export default function RegisterPage() {
     gender: '',
     phone: '',
     address: '',
-    bloodGroup: ''
+    bloodGroup: '',
+    state: '',
+    district: '',
+    taluka: '',
+    village: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +44,11 @@ export default function RegisterPage() {
             : undefined,
         experienceYears: form.role === 'doctor' ? Number(form.experienceYears) : undefined,
         consultationFee: form.role === 'doctor' ? Number(form.consultationFee) : undefined,
-        age: form.role === 'patient' && form.age ? Number(form.age) : undefined
+        age: form.role === 'patient' && form.age ? Number(form.age) : undefined,
+        state: form.role === 'patient' ? form.state : undefined,
+        district: form.role === 'patient' ? form.district : undefined,
+        taluka: form.role === 'patient' ? form.taluka : undefined,
+        village: form.role === 'patient' ? form.village : undefined
       };
       const user = await register(payload);
       navigate(`/${user.role}`);
@@ -57,8 +65,8 @@ export default function RegisterPage() {
         <div className="grid md:grid-cols-2">
           <div className="p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Join</p>
-            <h2 className="mt-3 text-3xl font-semibold text-slate-900">Create a smart hospital account</h2>
-            <p className="mt-2 text-sm text-slate-500">Pick your role to auto-load the right dashboard.</p>
+            <h2 className="mt-3 text-3xl font-semibold text-slate-900">Create an Arogya Rural account</h2>
+            <p className="mt-2 text-sm text-slate-500">Rural doctor scheduling and digital health records.</p>
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
               <label className="text-sm text-slate-600">
                 Full name
@@ -198,6 +206,46 @@ export default function RegisterPage() {
                     />
                   </label>
                   <label className="text-sm text-slate-600">
+                    State
+                    <input
+                      value={form.state}
+                      onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
+                      placeholder="Maharashtra"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm text-slate-600">
+                    District
+                    <input
+                      value={form.district}
+                      onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
+                      placeholder="Gondia"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm text-slate-600">
+                    Taluka
+                    <input
+                      value={form.taluka}
+                      onChange={(e) => setForm((f) => ({ ...f, taluka: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
+                      placeholder="Tirora"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm text-slate-600">
+                    Village
+                    <input
+                      value={form.village}
+                      onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
+                      placeholder="Mundikota"
+                      required
+                    />
+                  </label>
+                  <label className="text-sm text-slate-600">
                     Blood group
                     <input
                       value={form.bloodGroup}
@@ -235,12 +283,12 @@ export default function RegisterPage() {
             </p>
           </div>
           <div className="hidden bg-gradient-to-br from-slate-900 to-brand-600 p-10 text-white md:block">
-            <p className="text-sm uppercase tracking-[0.2em]">Hospital workflow</p>
-            <h3 className="mt-4 text-2xl font-semibold">One account opens the right hospital workspace</h3>
+            <p className="text-sm uppercase tracking-[0.2em]">Arogya Rural</p>
+            <h3 className="mt-4 text-2xl font-semibold">One account opens the right rural health workspace</h3>
             <ul className="mt-6 space-y-3 text-sm text-brand-50/90">
-              <li>• Patients can book OPD appointments and view medical records</li>
-              <li>• Doctors can track assigned visits and consultation notes</li>
-              <li>• Admins can monitor appointments, records, and hospital activity</li>
+              <li>• Patients can see village visits and book OPD appointments</li>
+              <li>• Doctors can publish village schedules and record consultations</li>
+              <li>• Admins can monitor appointments, records, and rural health activity</li>
             </ul>
           </div>
         </div>

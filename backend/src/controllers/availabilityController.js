@@ -1,10 +1,27 @@
-import { Op } from 'sequelize';
+import { Op, col, fn, where as sequelizeWhere } from 'sequelize';
 import { Appointment, Doctor, DoctorAvailability, User } from '../models/index.js';
 
 const getDoctorProfile = (userId) => Doctor.findOne({ where: { userId } });
 const today = () => new Date().toISOString().slice(0, 10);
+const LOCATION_FIELDS = ['state', 'district', 'taluka', 'village'];
 
 const availabilityIncludes = [{ model: Doctor, include: [{ model: User, attributes: ['name', 'email'] }] }];
+
+const trimNullable = (value) => {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+};
+
+const extractLocation = (source) =>
+  LOCATION_FIELDS.reduce((location, field) => ({ ...location, [field]: trimNullable(source[field]) }), {});
+
+const locationWhereClauses = (source) =>
+  LOCATION_FIELDS.map((field) => {
+    const value = trimNullable(source[field]);
+    if (!value) return null;
+    return sequelizeWhere(fn('LOWER', fn('TRIM', col(field))), value.toLowerCase());
+  }).filter(Boolean);
 
 const resolveDoctorId = async (req, requestedDoctorId) => {
   if (req.user.role === 'doctor') {
@@ -27,6 +44,8 @@ export const listAvailability = async (req, res) => {
   if (resolved.doctorId) where.doctorId = resolved.doctorId;
   if (date) where.availableDate = date;
   else where.availableDate = { [Op.gte]: today() };
+  const locationFilters = locationWhereClauses(req.query);
+  if (locationFilters.length > 0) where[Op.and] = locationFilters;
 
   const slots = await DoctorAvailability.findAll({
     where,
@@ -62,9 +81,16 @@ export const listAvailability = async (req, res) => {
 
 export const createAvailability = async (req, res) => {
   const { doctorId: requestedDoctorId, availableDate, startTime, endTime } = req.body;
+  if (req.user.role === 'patient') return res.status(403).json({ message: 'Patients cannot create availability slots' });
+
   const resolved = await resolveDoctorId(req, requestedDoctorId);
   if (resolved.error) return res.status(resolved.error.status).json({ message: resolved.error.message });
-  if (req.user.role === 'patient') return res.status(403).json({ message: 'Patients cannot create availability slots' });
+
+  const location = extractLocation(req.body);
+  if (LOCATION_FIELDS.some((field) => !location[field])) {
+    return res.status(400).json({ message: 'State, district, taluka, and village are required' });
+  }
+
   if (!resolved.doctorId || !availableDate || !startTime || !endTime) {
     return res.status(400).json({ message: 'Missing fields' });
   }
@@ -76,7 +102,7 @@ export const createAvailability = async (req, res) => {
 
   const [slot, created] = await DoctorAvailability.findOrCreate({
     where: { doctorId: resolved.doctorId, availableDate, startTime },
-    defaults: { doctorId: resolved.doctorId, availableDate, startTime, endTime }
+    defaults: { doctorId: resolved.doctorId, availableDate, startTime, endTime, ...location }
   });
   if (!created) return res.status(409).json({ message: 'Availability slot already exists' });
 

@@ -10,8 +10,9 @@ import { fetchAppointments, updateAppointment } from '../api/appointments';
 import { createAvailability, deleteAvailability, fetchAvailability } from '../api/availability';
 import { createPrescription } from '../api/prescriptions';
 import { createRecord, fetchRecords } from '../api/records';
+import { formatDate, formatLocation, formatTimeRange, getLocalDateISO } from '../utils/formatters';
 
-const today = new Date().toISOString().slice(0, 10);
+const today = getLocalDateISO();
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
@@ -23,6 +24,10 @@ export default function DoctorDashboard() {
   const [savingVisit, setSavingVisit] = useState(false);
   const [activeVisit, setActiveVisit] = useState(null);
   const [availabilityForm, setAvailabilityForm] = useState({
+    state: '',
+    district: '',
+    taluka: '',
+    village: '',
     availableDate: today,
     startTime: '',
     endTime: ''
@@ -132,7 +137,15 @@ export default function DoctorDashboard() {
       setAvailability((list) =>
         [...list, slot].sort((a, b) => `${a.availableDate} ${a.startTime}`.localeCompare(`${b.availableDate} ${b.startTime}`))
       );
-      setAvailabilityForm((form) => ({ ...form, startTime: '', endTime: '' }));
+      setAvailabilityForm((form) => ({
+        ...form,
+        state: '',
+        district: '',
+        taluka: '',
+        village: '',
+        startTime: '',
+        endTime: ''
+      }));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to add availability slot');
     }
@@ -192,6 +205,46 @@ export default function DoctorDashboard() {
         <SectionCard title="Availability">
           <form className="grid gap-3 md:grid-cols-2" onSubmit={handleAvailabilitySubmit}>
             <label className="text-sm text-slate-600">
+              State
+              <input
+                value={availabilityForm.state}
+                onChange={(e) => setAvailabilityForm((form) => ({ ...form, state: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                placeholder="Maharashtra"
+                required
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              District
+              <input
+                value={availabilityForm.district}
+                onChange={(e) => setAvailabilityForm((form) => ({ ...form, district: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                placeholder="Gondia"
+                required
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Taluka
+              <input
+                value={availabilityForm.taluka}
+                onChange={(e) => setAvailabilityForm((form) => ({ ...form, taluka: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                placeholder="Tirora"
+                required
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Village
+              <input
+                value={availabilityForm.village}
+                onChange={(e) => setAvailabilityForm((form) => ({ ...form, village: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                placeholder="Mundikota"
+                required
+              />
+            </label>
+            <label className="text-sm text-slate-600">
               Date
               <input
                 type="date"
@@ -235,9 +288,9 @@ export default function DoctorDashboard() {
             {availability.slice(0, 8).map((slot) => (
               <div key={slot.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 text-sm">
                 <div>
-                  <p className="font-semibold text-slate-800">
-                    {slot.availableDate} | {slot.startTime} - {slot.endTime}
-                  </p>
+                  <p className="font-semibold text-slate-800">{formatLocation(slot)}</p>
+                  <p className="text-xs text-slate-500">{formatDate(slot.availableDate)}</p>
+                  <p className="text-xs text-slate-500">{formatTimeRange(slot)}</p>
                   <p className="text-xs text-slate-500">{slot.isBooked ? 'Booked' : 'Open'}</p>
                 </div>
                 <button

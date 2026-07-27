@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../state/AuthContext';
 import { fetchDoctors } from '../api/doctors';
 import { fetchAvailability } from '../api/availability';
+import { formatShortLocation, formatTimeRange } from '../utils/formatters';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -156,7 +157,7 @@ export default function AppointmentForm({ onBook }) {
           </option>
           {slots.map((slot) => (
             <option key={slot.id} value={slot.startTime}>
-              {slot.startTime} - {slot.endTime}
+              {formatTimeRange(slot)} • {formatShortLocation(slot)}
             </option>
           ))}
         </select>

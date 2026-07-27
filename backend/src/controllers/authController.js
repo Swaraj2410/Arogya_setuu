@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from '../middleware/auth.js';
 import sequelize from '../config/database.js';
 
 const ROLES = ['patient', 'doctor', 'admin'];
+const LOCATION_FIELDS = ['state', 'district', 'taluka', 'village'];
 
 const toNullableNumber = (value) => {
   if (value === undefined || value === null || value === '') return null;
@@ -11,10 +12,43 @@ const toNullableNumber = (value) => {
   return Number.isNaN(number) ? null : number;
 };
 
+const trimNullable = (value) => {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+};
+
+const extractLocation = (source) =>
+  LOCATION_FIELDS.reduce((location, field) => ({ ...location, [field]: trimNullable(source[field]) }), {});
+
+const patientProfile = (patient) => {
+  if (!patient) return null;
+  const data = patient.toJSON ? patient.toJSON() : patient;
+  return {
+    id: data.id,
+    age: data.age ?? null,
+    gender: data.gender ?? null,
+    phone: data.phone ?? null,
+    address: data.address ?? null,
+    bloodGroup: data.bloodGroup ?? null,
+    state: data.state ?? null,
+    district: data.district ?? null,
+    taluka: data.taluka ?? null,
+    village: data.village ?? null
+  };
+};
+
 const publicUser = (user, extras = {}) => {
   const { passwordHash, ...safeUser } = user.toJSON();
   return { ...safeUser, ...extras };
 };
+
+const authUser = (user, patient, doctor) =>
+  publicUser(user, {
+    patientId: patient?.id,
+    doctorId: doctor?.id,
+    patientProfile: patientProfile(patient)
+  });
 
 export const register = async (req, res) => {
   const t = await sequelize.transaction();
@@ -33,7 +67,11 @@ export const register = async (req, res) => {
       gender,
       phone,
       address,
-      bloodGroup
+      bloodGroup,
+      state,
+      district,
+      taluka,
+      village
     } = req.body;
 
     role = role?.toLowerCase()?.trim();
@@ -46,6 +84,12 @@ export const register = async (req, res) => {
     if (!ROLES.includes(role)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    const location = extractLocation({ state, district, taluka, village });
+    if (role === 'patient' && LOCATION_FIELDS.some((field) => !location[field])) {
+      await t.rollback();
+      return res.status(400).json({ message: 'State, district, taluka, and village are required for patient registration' });
     }
 
     const exists = await User.findOne({ where: { email }, transaction: t });
@@ -65,7 +109,8 @@ export const register = async (req, res) => {
           gender: gender ?? null,
           phone: phone ?? null,
           address: address ?? null,
-          bloodGroup: bloodGroup ?? null
+          bloodGroup: bloodGroup ?? null,
+          ...location
         },
         { transaction: t }
       );
@@ -123,7 +168,7 @@ export const register = async (req, res) => {
     const patient = role === 'patient' ? await Patient.findOne({ where: { userId: user.id } }) : null;
     const doctor = role === 'doctor' ? await Doctor.findOne({ where: { userId: user.id } }) : null;
     const token = signToken({ id: user.id, role: user.role });
-    return res.status(201).json({ token, user: publicUser(user, { patientId: patient?.id, doctorId: doctor?.id }) });
+    return res.status(201).json({ token, user: authUser(user, patient, doctor) });
   } catch (err) {
     if (!t.finished) await t.rollback();
     return res.status(500).json({ message: err.message || 'Failed to register' });
@@ -141,11 +186,11 @@ export const login = async (req, res) => {
   const patient = user.role === 'patient' ? await Patient.findOne({ where: { userId: user.id } }) : null;
   const doctor = user.role === 'doctor' ? await Doctor.findOne({ where: { userId: user.id } }) : null;
   const token = signToken({ id: user.id, role: user.role });
-  return res.json({ token, user: publicUser(user, { patientId: patient?.id, doctorId: doctor?.id }) });
+  return res.json({ token, user: authUser(user, patient, doctor) });
 };
 
 export const me = async (req, res) => {
   const patient = req.user.role === 'patient' ? await Patient.findOne({ where: { userId: req.user.id } }) : null;
   const doctor = req.user.role === 'doctor' ? await Doctor.findOne({ where: { userId: req.user.id } }) : null;
-  return res.json({ user: publicUser(req.user, { patientId: patient?.id, doctorId: doctor?.id }) });
+  return res.json({ user: authUser(req.user, patient, doctor) });
 };

@@ -15,10 +15,10 @@ import {
 import Brand from '../components/Brand';
 
 const operatingCounters = [
-  { label: 'OPD tokens', value: '128', note: 'issued till 1:30 PM' },
-  { label: 'Doctors on duty', value: '34', note: 'across 9 departments' },
-  { label: 'Avg. wait', value: '18 min', note: 'current queue load' },
-  { label: 'Reports ready', value: '76', note: 'lab and radiology' }
+  { label: 'Village visits', value: '18', note: 'published this week' },
+  { label: 'Doctors active', value: '34', note: 'across rural OPD routes' },
+  { label: 'Open slots', value: '128', note: 'available for booking' },
+  { label: 'Records ready', value: '76', note: 'digital health files' }
 ];
 
 const departments = [
@@ -51,8 +51,8 @@ const departments = [
 const workAreas = [
   {
     icon: CalendarClock,
-    title: 'OPD appointment desk',
-    text: 'Handle walk-ins, online slots, doctor rooms, and token queues from the same screen.'
+    title: 'Village schedule publishing',
+    text: 'Doctors post state, district, taluka, village, date, and visit time before rural OPD rounds.'
   },
   {
     icon: Stethoscope,
@@ -61,21 +61,21 @@ const workAreas = [
   },
   {
     icon: FileText,
-    title: 'MRD and records',
+    title: 'Digital health records',
     text: 'Keep diagnosis, treatment, prescriptions, and patient history attached to each visit.'
   },
   {
     icon: Pill,
-    title: 'Pharmacy and billing handoff',
-    text: 'Move patients from consultation to reports, medicines, UPI/cash billing, and discharge.'
+    title: 'Appointment continuity',
+    text: 'Patients book from real open slots while records and prescriptions stay linked to each visit.'
   }
 ];
 
 const shiftFlow = [
-  { title: 'Registration', detail: 'UHID lookup, token issue, counter assignment' },
-  { title: 'Consultation', detail: 'Doctor queue, notes, diagnosis, prescription' },
-  { title: 'Diagnostics', detail: 'Lab sample, radiology status, report collection' },
-  { title: 'Billing', detail: 'UPI/cash payment, pharmacy, follow-up reminder' }
+  { title: 'Patient profile', detail: 'State, district, taluka, village, and contact details' },
+  { title: 'Doctor schedule', detail: 'Published rural visit location, date, and time' },
+  { title: 'Appointment', detail: 'Patient books an open doctor availability slot' },
+  { title: 'Consultation', detail: 'Diagnosis, treatment, prescription, and records' }
 ];
 
 export default function LandingPage() {
@@ -107,21 +107,21 @@ export default function LandingPage() {
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-14">
             <div className="flex min-h-[56vh] flex-col justify-center text-white">
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.24em] text-[#f6c453]">
-                Pune multi-speciality hospital desk
+                Rural doctor scheduling and digital health records
               </p>
               <h1 className="max-w-3xl font-display text-4xl leading-tight sm:text-5xl lg:text-6xl">
-                Indian Hospital Operations Desk
+                Arogya Rural
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-slate-100 sm:text-lg">
-                Manage OPD appointments, token queues, doctor rooms, medical records, prescriptions, reports, and
-                billing handoffs for a busy Indian hospital.
+                Help doctors publish village visit schedules, let patients discover visits in their registered village,
+                and keep appointments, medical records, and prescriptions in one secure workflow.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
                   to="/register"
                   className="rounded-md bg-[#f6c453] px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm hover:bg-[#e9b53e]"
                 >
-                  Start hospital desk
+                  Start scheduling
                 </Link>
                 <Link
                   to="/login"
@@ -135,7 +135,7 @@ export default function LandingPage() {
                   <ShieldCheck size={16} /> Role-based access
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <Building2 size={16} /> OPD, wards, lab, pharmacy
+                  <Building2 size={16} /> Village visits and city OPD
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <Users size={16} /> Patient, doctor, admin views
@@ -146,12 +146,12 @@ export default function LandingPage() {
             <aside className="self-center rounded-lg border border-white/20 bg-white/95 p-4 shadow-2xl">
               <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#146c5f]">Live OPD board</p>
-                  <h2 className="mt-1 text-xl font-semibold text-slate-950">Monday shift status</h2>
-                  <p className="text-sm text-slate-500">Main block, ground floor counters</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#146c5f]">Published schedules</p>
+                  <h2 className="mt-1 text-xl font-semibold text-slate-950">Village visit status</h2>
+                  <p className="text-sm text-slate-500">Upcoming rural availability</p>
                 </div>
                 <span className="w-fit rounded-full bg-[#e6f4ef] px-3 py-1 text-xs font-semibold text-[#146c5f]">
-                  Queue active
+                  Slots active
                 </span>
               </div>
 
@@ -208,9 +208,9 @@ export default function LandingPage() {
 
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#146c5f]">Operations modules</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#146c5f]">Care modules</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Built around the actual work of an Indian hospital day
+              Built around rural visits and everyday clinical records
             </h2>
           </div>
 
@@ -232,11 +232,11 @@ export default function LandingPage() {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#f6c453]">Admin view</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Keep hospital load visible before it becomes a problem
+                Keep rural appointments and records visible
               </h2>
               <p className="mt-4 text-sm leading-6 text-slate-200">
-                Admins can track appointment counts, cancellations, doctor utilization, and department-wise work without
-                waiting for end-of-day spreadsheets.
+                Admins can track appointment counts, cancellations, doctor utilization, and specialization-wise work
+                without waiting for end-of-day spreadsheets.
               </p>
             </div>
 
@@ -258,7 +258,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-sm text-slate-500">
-        Smart Hospital Appointment &amp; Record Management System - built for Indian hospital operations.
+        Arogya Rural - rural doctor scheduling and digital health records.
       </footer>
     </div>
   );

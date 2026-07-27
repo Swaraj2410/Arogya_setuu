@@ -30,16 +30,16 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="grid w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-soft md:grid-cols-2">
         <div className="hidden bg-gradient-to-br from-brand-500 to-slate-900 p-10 text-white md:block">
-          <p className="text-sm uppercase tracking-[0.2em]">Smart Hospital</p>
+          <p className="text-sm uppercase tracking-[0.2em]">Arogya Rural</p>
           <h1 className="mt-6 text-3xl font-semibold leading-tight">
             Welcome back.
             <br />
-            Manage appointments, records, and schedules in minutes.
+            Manage village visits, records, and appointments in minutes.
           </h1>
           <ul className="mt-8 space-y-3 text-sm text-brand-50/90">
             <li>• Patient, doctor, and admin views</li>
             <li>• Role-secured dashboards</li>
-            <li>• Appointment lifecycle controls</li>
+            <li>• Rural doctor scheduling and digital health records</li>
           </ul>
         </div>
         <div className="p-8">

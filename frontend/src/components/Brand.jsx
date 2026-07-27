@@ -8,8 +8,8 @@ export default function Brand() {
         <HeartPulse />
       </span>
       <div>
-        <p className="font-display text-lg leading-none">Smart Hospital</p>
-        <p className="text-xs text-slate-500 leading-none">Appointments & Records</p>
+        <p className="font-display text-lg leading-none">Arogya Rural</p>
+        <p className="text-xs text-slate-500 leading-none">Rural doctor scheduling</p>
       </div>
     </div>
   );
