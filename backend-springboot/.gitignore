@@ -1,0 +1,10 @@
+target/
+*.log
+.env
+.env.local
+src/main/resources/application-local.properties
+data/
+*.csv
+*.xlsx
+*.parquet
+*.7z

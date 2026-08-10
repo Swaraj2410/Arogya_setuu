@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard';
 import AppointmentCard from '../components/AppointmentCard';
 import RecordCard from '../components/RecordCard';
 import SectionCard from '../components/SectionCard';
+import LocationSelect from '../components/LocationSelect';
 import { useAuth } from '../state/AuthContext';
 import { fetchAppointments, updateAppointment } from '../api/appointments';
 import { createAvailability, deleteAvailability, fetchAvailability } from '../api/availability';
@@ -204,46 +205,12 @@ export default function DoctorDashboard() {
         </SectionCard>
         <SectionCard title="Availability">
           <form className="grid gap-3 md:grid-cols-2" onSubmit={handleAvailabilitySubmit}>
-            <label className="text-sm text-slate-600">
-              State
-              <input
-                value={availabilityForm.state}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, state: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                placeholder="Maharashtra"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              District
-              <input
-                value={availabilityForm.district}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, district: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                placeholder="Gondia"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              Taluka
-              <input
-                value={availabilityForm.taluka}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, taluka: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                placeholder="Tirora"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              Village
-              <input
-                value={availabilityForm.village}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, village: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                placeholder="Mundikota"
-                required
-              />
-            </label>
+            <LocationSelect
+              value={availabilityForm}
+              onChange={(location) => setAvailabilityForm((form) => ({ ...form, ...location }))}
+              inputClassName="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              required
+            />
             <label className="text-sm text-slate-600">
               Date
               <input

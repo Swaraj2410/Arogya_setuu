@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { Mail, User, UserCircle2 } from 'lucide-react';
 import { specializations } from '../data/mockData';
+import LocationSelect from '../components/LocationSelect';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -205,46 +206,11 @@ export default function RegisterPage() {
                       placeholder="City, State"
                     />
                   </label>
-                  <label className="text-sm text-slate-600">
-                    State
-                    <input
-                      value={form.state}
-                      onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
-                      placeholder="Maharashtra"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm text-slate-600">
-                    District
-                    <input
-                      value={form.district}
-                      onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
-                      placeholder="Gondia"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm text-slate-600">
-                    Taluka
-                    <input
-                      value={form.taluka}
-                      onChange={(e) => setForm((f) => ({ ...f, taluka: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
-                      placeholder="Tirora"
-                      required
-                    />
-                  </label>
-                  <label className="text-sm text-slate-600">
-                    Village
-                    <input
-                      value={form.village}
-                      onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm focus:border-brand-400 focus:outline-none"
-                      placeholder="Mundikota"
-                      required
-                    />
-                  </label>
+                  <LocationSelect
+                    value={form}
+                    onChange={(location) => setForm((f) => ({ ...f, ...location }))}
+                    required
+                  />
                   <label className="text-sm text-slate-600">
                     Blood group
                     <input
