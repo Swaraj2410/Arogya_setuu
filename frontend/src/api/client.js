@@ -15,4 +15,18 @@ export const setAuthToken = (token) => {
   }
 };
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      setAuthToken(null);
+      localStorage.removeItem('shr-user');
+      if (window.location.pathname !== '/login') {
+        window.dispatchEvent(new Event('arogya:unauthorized'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

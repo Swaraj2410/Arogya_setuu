@@ -32,6 +32,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+    };
+    window.addEventListener('arogya:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('arogya:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
     if (user) localStorage.setItem('shr-user', JSON.stringify(user));
     else localStorage.removeItem('shr-user');
   }, [user]);

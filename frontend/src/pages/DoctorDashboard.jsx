@@ -1,17 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, ClipboardList, Plus, Trash2, Users } from 'lucide-react';
-import DashboardLayout from '../layouts/DashboardLayout';
-import StatCard from '../components/StatCard';
+import { Link } from 'react-router-dom';
+import { CalendarCheck, ClipboardList, FileText, MapPinned, Pill, Plus, Users } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
+import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import RecordCard from '../components/RecordCard';
 import SectionCard from '../components/SectionCard';
-import LocationSelect from '../components/LocationSelect';
-import { useAuth } from '../state/AuthContext';
+import StatCard from '../components/StatCard';
+import VillageScheduleCard from '../components/VillageScheduleCard';
+import DashboardLayout from '../layouts/DashboardLayout';
 import { fetchAppointments, updateAppointment } from '../api/appointments';
-import { createAvailability, deleteAvailability, fetchAvailability } from '../api/availability';
+import { fetchAvailability } from '../api/availability';
 import { createPrescription } from '../api/prescriptions';
 import { createRecord, fetchRecords } from '../api/records';
-import { formatDate, formatLocation, formatTimeRange, getLocalDateISO } from '../utils/formatters';
+import { useAuth } from '../state/AuthContext';
+import { getLocalDateISO, sortAppointments, sortSlots } from '../utils/formatters';
 
 const today = getLocalDateISO();
 
@@ -20,19 +24,7 @@ export default function DoctorDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [records, setRecords] = useState([]);
   const [availability, setAvailability] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [savingVisit, setSavingVisit] = useState(false);
   const [activeVisit, setActiveVisit] = useState(null);
-  const [availabilityForm, setAvailabilityForm] = useState({
-    state: '',
-    district: '',
-    taluka: '',
-    village: '',
-    availableDate: today,
-    startTime: '',
-    endTime: ''
-  });
   const [visitForm, setVisitForm] = useState({
     diagnosis: '',
     treatment: '',
@@ -41,10 +33,10 @@ export default function DoctorDashboard() {
     medicines: '',
     dosageInstructions: ''
   });
-  const doctorId = useMemo(() => {
-    if (user?.role === 'doctor') return user?.doctorId || null;
-    return null;
-  }, [user]);
+  const [loading, setLoading] = useState(true);
+  const [savingVisit, setSavingVisit] = useState(false);
+  const [error, setError] = useState('');
+  const doctorId = user?.doctorId;
 
   useEffect(() => {
     const load = async () => {
@@ -60,11 +52,11 @@ export default function DoctorDashboard() {
           fetchRecords({ doctorId }),
           fetchAvailability({ doctorId })
         ]);
-        setAppointments(apptData);
-        setRecords(recordData);
-        setAvailability(availabilityData);
+        setAppointments(sortAppointments(apptData || []));
+        setRecords(recordData || []);
+        setAvailability(sortSlots(availabilityData || []));
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load doctor workspace data');
+        setError(err.response?.data?.message || 'We could not load your doctor workspace.');
       } finally {
         setLoading(false);
       }
@@ -72,11 +64,17 @@ export default function DoctorDashboard() {
     load();
   }, [doctorId]);
 
-  const myAppointments = appointments.filter((a) => a.doctorId === doctorId);
-  const myRecords = records.filter((r) => r.doctorId === doctorId);
-  const upcomingAppointments = myAppointments
-    .filter((a) => a.status === 'booked')
-    .sort((a, b) => `${a.appointmentDate} ${a.appointmentTime}`.localeCompare(`${b.appointmentDate} ${b.appointmentTime}`));
+  const bookedAppointments = appointments.filter((item) => item.status === 'booked');
+  const todayAppointments = bookedAppointments.filter((item) => item.appointmentDate === today);
+  const upcomingVisits = availability.filter((slot) => slot.availableDate >= today);
+  const todayVisits = upcomingVisits.filter((slot) => slot.availableDate === today);
+
+  const stats = [
+    { label: "Today's Appointments", value: todayAppointments.length, icon: CalendarCheck },
+    { label: 'Upcoming Village Visits', value: upcomingVisits.length, icon: MapPinned },
+    { label: 'Patients Seen', value: records.length, icon: Users },
+    { label: 'Pending Appointments', value: bookedAppointments.length, icon: ClipboardList }
+  ];
 
   const startVisit = (appointment) => {
     setActiveVisit(appointment);
@@ -90,11 +88,11 @@ export default function DoctorDashboard() {
     });
   };
 
-  const handleVisitSubmit = async (e) => {
-    e.preventDefault();
+  const handleVisitSubmit = async (event) => {
+    event.preventDefault();
     if (!activeVisit) return;
     if ((visitForm.medicines && !visitForm.dosageInstructions) || (!visitForm.medicines && visitForm.dosageInstructions)) {
-      setError('Enter both medicines and dosage instructions to create a prescription');
+      setError('Enter both medicines and dosage instructions to create a prescription.');
       return;
     }
     setSavingVisit(true);
@@ -120,254 +118,181 @@ export default function DoctorDashboard() {
         recordForState = { ...record, Prescriptions: [...(record.Prescriptions || []), prescription] };
       }
       const updated = await updateAppointment(activeVisit.id, { status: 'completed' });
-      setAppointments((list) => list.map((appt) => (appt.id === updated.id ? updated : appt)));
+      setAppointments((list) => list.map((item) => (item.id === updated.id ? updated : item)));
       setRecords((list) => [recordForState, ...list]);
       setActiveVisit(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to complete visit');
+      setError(err.response?.data?.message || 'We could not complete this visit.');
     } finally {
       setSavingVisit(false);
     }
   };
 
-  const handleAvailabilitySubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      const slot = await createAvailability({ doctorId, ...availabilityForm });
-      setAvailability((list) =>
-        [...list, slot].sort((a, b) => `${a.availableDate} ${a.startTime}`.localeCompare(`${b.availableDate} ${b.startTime}`))
-      );
-      setAvailabilityForm((form) => ({
-        ...form,
-        state: '',
-        district: '',
-        taluka: '',
-        village: '',
-        startTime: '',
-        endTime: ''
-      }));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add availability slot');
-    }
-  };
-
-  const handleDeleteSlot = async (slot) => {
-    if (!window.confirm('Delete this availability slot?')) return;
-    setError('');
-    try {
-      await deleteAvailability(slot.id);
-      setAvailability((list) => list.filter((item) => item.id !== slot.id));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete availability slot');
-    }
-  };
-
-  const stats = [
-    {
-      label: 'Today',
-      value: myAppointments.filter((a) => a.status === 'booked' && a.appointmentDate === today).length,
-      icon: CalendarCheck
-    },
-    { label: 'Completed', value: myAppointments.filter((a) => a.status === 'completed').length, icon: ClipboardList },
-    { label: 'Patients', value: new Set(myAppointments.map((a) => a.patientId)).size, icon: Users }
-  ];
-
   return (
-    <DashboardLayout role="doctor" title="Doctor workspace" subtitle="Stay on top of your visits and notes">
-      <div className="grid gap-4 md:grid-cols-3">
-        {stats.map((s) => (
-          <StatCard key={s.label} {...s} />
+    <DashboardLayout role="doctor" title="Doctor Dashboard" subtitle="Manage village visits, appointments, and care records">
+      <PageHeader
+        eyebrow="Doctor workspace"
+        title={`Good ${new Date().getHours() < 12 ? 'morning' : 'day'}, Dr. ${user?.name?.replace(/^Dr\\.?\\s*/i, '').split(' ')[0] || 'Doctor'}`}
+        text="Publish village visits, see appointment queues, and complete consultations with records and prescriptions."
+        action={
+          <Button as={Link} to="/doctor/schedule" icon={Plus}>
+            Add Village Visit
+          </Button>
+        }
+      />
+
+      {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((item) => (
+          <StatCard key={item.label} {...item} />
         ))}
-      </div>
+      </section>
 
-      {error && <p className="text-sm text-rose-600">{error}</p>}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Upcoming visits">
-          <div className="space-y-3">
-            {loading ? (
-              <p className="text-sm text-slate-500">Loading...</p>
-            ) : (
-              <>
-                {upcomingAppointments.slice(0, 4).map((appt) => (
-                  <AppointmentCard
-                    key={appt.id}
-                    appointment={appt}
-                    onComplete={startVisit}
-                    updating={savingVisit && activeVisit?.id === appt.id}
-                  />
-                ))}
-                {upcomingAppointments.length === 0 && <p className="text-sm text-slate-500">No visits scheduled.</p>}
-              </>
-            )}
-          </div>
-        </SectionCard>
-        <SectionCard title="Availability">
-          <form className="grid gap-3 md:grid-cols-2" onSubmit={handleAvailabilitySubmit}>
-            <LocationSelect
-              value={availabilityForm}
-              onChange={(location) => setAvailabilityForm((form) => ({ ...form, ...location }))}
-              inputClassName="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-              required
-            />
-            <label className="text-sm text-slate-600">
-              Date
-              <input
-                type="date"
-                min={today}
-                value={availabilityForm.availableDate}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, availableDate: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              Start
-              <input
-                type="time"
-                value={availabilityForm.startTime}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, startTime: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                required
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              End
-              <input
-                type="time"
-                value={availabilityForm.endTime}
-                onChange={(e) => setAvailabilityForm((form) => ({ ...form, endTime: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-                required
-              />
-            </label>
-            <div className="flex items-end justify-end">
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-brand-700"
-              >
-                <Plus size={15} /> Add
-              </button>
+      <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <SectionCard title="Today's Schedule">
+          {loading ? (
+            <p className="text-sm text-slate-600">Loading today's work...</p>
+          ) : todayVisits.length > 0 ? (
+            <div className="space-y-3">
+              {todayVisits.map((slot) => (
+                <VillageScheduleCard key={slot.id} slot={slot} showDoctor={false} />
+              ))}
             </div>
-          </form>
-          <div className="mt-4 space-y-2">
-            {availability.slice(0, 8).map((slot) => (
-              <div key={slot.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 text-sm">
-                <div>
-                  <p className="font-semibold text-slate-800">{formatLocation(slot)}</p>
-                  <p className="text-xs text-slate-500">{formatDate(slot.availableDate)}</p>
-                  <p className="text-xs text-slate-500">{formatTimeRange(slot)}</p>
-                  <p className="text-xs text-slate-500">{slot.isBooked ? 'Booked' : 'Open'}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteSlot(slot)}
-                  disabled={slot.isBooked}
-                  title="Delete availability slot"
-                  aria-label="Delete availability slot"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-100 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
+          ) : (
+            <EmptyState
+              icon={MapPinned}
+              title="No village visit planned for today"
+              text="Publish a visit when you know which village you will serve next."
+              action={
+                <Button as={Link} to="/doctor/schedule" variant="secondary">
+                  Plan a Village Visit
+                </Button>
+              }
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard title="Recent Appointments">
+          {loading ? (
+            <p className="text-sm text-slate-600">Loading appointments...</p>
+          ) : bookedAppointments.length > 0 ? (
+            <div className="space-y-3">
+              {bookedAppointments.slice(0, 3).map((appointment) => (
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  role="doctor"
+                  onComplete={startVisit}
+                  updating={savingVisit && activeVisit?.id === appointment.id}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={CalendarCheck} title="No pending appointments" text="Booked patient visits will appear here." />
+          )}
+        </SectionCard>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionCard title="Quick Actions">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { to: '/doctor/schedule', icon: MapPinned, title: 'Add Village Visit', text: 'Publish state, district, taluka, village, date, and time.' },
+              { to: '/appointments', icon: CalendarCheck, title: 'View Appointments', text: 'Today, upcoming, completed, and cancelled.' },
+              { to: '/records', icon: FileText, title: 'Patient Records', text: 'Review and manage consultation notes.' },
+              { to: '/prescriptions', icon: Pill, title: 'Prescriptions', text: 'View digital prescription documents.' }
+            ].map((item) => (
+              <Link key={item.to} to={item.to} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-200">
+                <item.icon size={21} className="text-brand-700" aria-hidden="true" />
+                <p className="mt-3 font-semibold text-slate-950">{item.title}</p>
+                <p className="mt-1 text-sm leading-5 text-slate-600">{item.text}</p>
+              </Link>
             ))}
-            {availability.length === 0 && !loading && <p className="text-sm text-slate-500">No availability slots added.</p>}
           </div>
         </SectionCard>
-      </div>
+
+        <SectionCard title="Recent Medical Notes">
+          {loading ? (
+            <p className="text-sm text-slate-600">Loading records...</p>
+          ) : records.length > 0 ? (
+            <div className="space-y-3">
+              {records.slice(0, 3).map((record) => (
+                <RecordCard key={record.id} record={record} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={FileText} title="No medical records yet" text="Records appear after you complete a patient visit." />
+          )}
+        </SectionCard>
+      </section>
 
       {activeVisit && (
-        <SectionCard title="Complete visit">
-          <form className="grid gap-3 md:grid-cols-2" onSubmit={handleVisitSubmit}>
-            <label className="text-sm text-slate-600">
+        <SectionCard title="Complete Visit">
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleVisitSubmit}>
+            <label className="block text-sm font-medium text-slate-700">
               Visit date
               <input
                 type="date"
                 value={visitForm.visitDate}
-                onChange={(e) => setVisitForm((form) => ({ ...form, visitDate: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setVisitForm((current) => ({ ...current, visitDate: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
                 required
               />
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700">
               Diagnosis
               <input
                 value={visitForm.diagnosis}
-                onChange={(e) => setVisitForm((form) => ({ ...form, diagnosis: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setVisitForm((current) => ({ ...current, diagnosis: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
                 required
               />
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700">
               Treatment
               <input
                 value={visitForm.treatment}
-                onChange={(e) => setVisitForm((form) => ({ ...form, treatment: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setVisitForm((current) => ({ ...current, treatment: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               />
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700">
               Medicines
               <input
                 value={visitForm.medicines}
-                onChange={(e) => setVisitForm((form) => ({ ...form, medicines: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setVisitForm((current) => ({ ...current, medicines: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               />
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700">
               Dosage instructions
               <input
                 value={visitForm.dosageInstructions}
-                onChange={(e) => setVisitForm((form) => ({ ...form, dosageInstructions: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setVisitForm((current) => ({ ...current, dosageInstructions: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
               />
             </label>
-            <label className="md:col-span-2 text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700 md:col-span-2">
               Notes
               <textarea
                 value={visitForm.notes}
-                onChange={(e) => setVisitForm((form) => ({ ...form, notes: e.target.value }))}
+                onChange={(event) => setVisitForm((current) => ({ ...current, notes: event.target.value }))}
                 rows={3}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
               />
             </label>
-            <div className="md:col-span-2 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveVisit(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-              >
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end md:col-span-2">
+              <Button variant="secondary" onClick={() => setActiveVisit(null)} disabled={savingVisit}>
                 Close
-              </button>
-              <button
-                type="submit"
-                disabled={savingVisit}
-                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Complete
-              </button>
+              </Button>
+              <Button type="submit" disabled={savingVisit}>
+                {savingVisit ? 'Saving...' : 'Complete Visit'}
+              </Button>
             </div>
           </form>
         </SectionCard>
       )}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title="Recent notes">
-          <div className="space-y-3">
-            {loading ? (
-              <p className="text-sm text-slate-500">Loading...</p>
-            ) : (
-              <>
-                {myRecords.slice(0, 4).map((rec) => (
-                  <RecordCard key={rec.id} record={rec} />
-                ))}
-                {myRecords.length === 0 && <p className="text-sm text-slate-500">No medical records yet.</p>}
-              </>
-            )}
-          </div>
-        </SectionCard>
-      </div>
     </DashboardLayout>
   );
 }

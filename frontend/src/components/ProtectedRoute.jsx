@@ -8,8 +8,9 @@ export default function ProtectedRoute({ roles, children }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-semibold text-slate-600">
-        Loading workspace...
+      <div className="flex min-h-screen items-center justify-center bg-[#fbf8f1] text-sm font-semibold text-slate-700">
+        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-700" />
+        Preparing your workspace...
       </div>
     );
   }

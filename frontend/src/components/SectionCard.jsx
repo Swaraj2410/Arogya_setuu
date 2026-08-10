@@ -1,10 +1,11 @@
 import React from 'react';
+import clsx from 'clsx';
 
-export default function SectionCard({ title, action, children }) {
+export default function SectionCard({ title, action, children, className }) {
   return (
-    <section className="glass w-full rounded-3xl p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{title}</h3>
+    <section className={clsx('w-full rounded-lg border border-slate-200 bg-white p-4 shadow-card', className)}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-base font-semibold text-slate-950">{title}</h3>
         {action}
       </div>
       {children}

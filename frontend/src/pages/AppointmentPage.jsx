@@ -1,17 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import DashboardLayout from '../layouts/DashboardLayout';
-import SectionCard from '../components/SectionCard';
+import { CalendarDays, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import AppointmentCard from '../components/AppointmentCard';
 import AppointmentForm from '../components/AppointmentForm';
 import Badge from '../components/Badge';
-import { useAuth } from '../state/AuthContext';
+import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
+import SectionCard from '../components/SectionCard';
+import DashboardLayout from '../layouts/DashboardLayout';
 import { createAppointment, deleteAppointment, fetchAppointments, updateAppointment } from '../api/appointments';
 import { fetchAvailability } from '../api/availability';
-import { formatShortLocation, formatTimeRange } from '../utils/formatters';
+import { useAuth } from '../state/AuthContext';
+import { formatShortLocation, formatTimeRange, getLocalDateISO, sortAppointments } from '../utils/formatters';
+
+const tabs = [
+  { key: 'booked', label: 'Upcoming', icon: Clock },
+  { key: 'completed', label: 'Completed', icon: CheckCircle2 },
+  { key: 'cancelled', label: 'Cancelled', icon: XCircle }
+];
 
 export default function AppointmentPage() {
   const { user } = useAuth();
-  const [filters, setFilters] = useState({ status: 'all', date: '' });
+  const [activeTab, setActiveTab] = useState('booked');
+  const [date, setDate] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,14 +38,14 @@ export default function AppointmentPage() {
     setError('');
     try {
       const data = await fetchAppointments({
-        status: filters.status === 'all' ? undefined : filters.status,
-        date: filters.date || undefined,
+        date: date || undefined,
         doctorId: user?.role === 'doctor' ? user?.doctorId : undefined,
         patientId: user?.role === 'patient' ? user?.patientId : undefined
       });
-      setItems(data);
+      setItems(sortAppointments(data || []));
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load appointments');
+      setError(err.response?.data?.message || 'We could not load your appointments.');
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -43,7 +54,7 @@ export default function AppointmentPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.status, filters.date]);
+  }, [date, user?.id]);
 
   useEffect(() => {
     const loadSlots = async () => {
@@ -57,7 +68,7 @@ export default function AppointmentPage() {
         const data = await fetchAvailability({ doctorId: rescheduleTarget.doctorId, date: rescheduleForm.date });
         setSlots((data || []).filter((slot) => !slot.isBooked));
       } catch (err) {
-        setError(err.response?.data?.message || 'Unable to load doctor availability');
+        setError(err.response?.data?.message || 'We could not load open slots.');
         setSlots([]);
       } finally {
         setSlotsLoading(false);
@@ -66,38 +77,57 @@ export default function AppointmentPage() {
     loadSlots();
   }, [rescheduleTarget, rescheduleForm.date]);
 
-  const filtered = useMemo(() => {
-    return items.filter((appt) => {
-      if (user?.role === 'patient' && user?.patientId && appt.patientId !== user.patientId) return false;
-      if (user?.role === 'doctor' && user?.doctorId && appt.doctorId !== user.doctorId) return false;
-      if (filters.status !== 'all' && appt.status !== filters.status) return false;
-      if (filters.date && appt.appointmentDate !== filters.date) return false;
-      return true;
-    });
-  }, [items, filters, user]);
+  const counts = useMemo(
+    () =>
+      tabs.reduce(
+        (acc, tab) => ({
+          ...acc,
+          [tab.key]: items.filter((item) => item.status === tab.key).length
+        }),
+        {}
+      ),
+    [items]
+  );
+
+  const visibleItems = useMemo(() => items.filter((item) => item.status === activeTab), [items, activeTab]);
 
   const handleBook = async (appointment) => {
     setError('');
     try {
       const created = await createAppointment(appointment);
-      setItems((list) => [created, ...list]);
+      setItems((list) => sortAppointments([created, ...list]));
+      return created;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to book');
+      setError(err.response?.data?.message || 'We could not book this appointment.');
       throw err;
     }
   };
 
   const handleDelete = async (appointment) => {
     if (!window.confirm('Delete this appointment?')) return;
-    setError('');
     setDeletingId(appointment.id);
+    setError('');
     try {
       await deleteAppointment(appointment.id);
       setItems((list) => list.filter((item) => item.id !== appointment.id));
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete appointment');
+      setError(err.response?.data?.message || 'We could not delete this appointment.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleCancel = async (appointment) => {
+    if (!window.confirm('Cancel this appointment?')) return;
+    setUpdatingId(appointment.id);
+    setError('');
+    try {
+      const updated = await updateAppointment(appointment.id, { status: 'cancelled' });
+      setItems((list) => list.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err) {
+      setError(err.response?.data?.message || 'We could not cancel this appointment.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -106,164 +136,153 @@ export default function AppointmentPage() {
     setRescheduleForm({ date: appointment.appointmentDate, time: '' });
   };
 
-  const handleReschedule = async (e) => {
-    e.preventDefault();
+  const handleReschedule = async (event) => {
+    event.preventDefault();
     if (!rescheduleTarget || !rescheduleForm.date || !rescheduleForm.time) return;
-    setError('');
     setUpdatingId(rescheduleTarget.id);
+    setError('');
     try {
       const updated = await updateAppointment(rescheduleTarget.id, {
         appointmentDate: rescheduleForm.date,
         appointmentTime: rescheduleForm.time
       });
-      setItems((list) => list.map((item) => (item.id === updated.id ? updated : item)));
+      setItems((list) => sortAppointments(list.map((item) => (item.id === updated.id ? updated : item))));
       setRescheduleTarget(null);
       setRescheduleForm({ date: '', time: '' });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to reschedule appointment');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleCancel = async (appointment) => {
-    if (!window.confirm('Cancel this appointment?')) return;
-    setError('');
-    setUpdatingId(appointment.id);
-    try {
-      const updated = await updateAppointment(appointment.id, { status: 'cancelled' });
-      setItems((list) => list.map((item) => (item.id === updated.id ? updated : item)));
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to cancel appointment');
+      setError(err.response?.data?.message || 'We could not reschedule this appointment.');
     } finally {
       setUpdatingId(null);
     }
   };
 
   return (
-    <DashboardLayout role={user?.role || 'patient'} title="Appointments" subtitle="Book, reschedule, and track visits">
-      <div className="grid gap-4 lg:grid-cols-2">
-        {user?.role === 'patient' && (
-          <SectionCard
-            title="Book appointment"
-            action={<Badge label={`${items.filter((i) => i.status === 'booked').length} active`} variant="booked" />}
-          >
-            <AppointmentForm onBook={handleBook} />
-          </SectionCard>
-        )}
+    <DashboardLayout role={user?.role || 'patient'} title="Appointments" subtitle="Book, reschedule, and track care visits">
+      <PageHeader
+        eyebrow="Appointment booking"
+        title={user?.role === 'patient' ? 'Book and manage your appointments' : 'Appointment queue'}
+        text={
+          user?.role === 'patient'
+            ? 'Choose a doctor, date, and open village visit slot. You will see a confirmation summary before booking.'
+            : 'Review patient appointments by status and date.'
+        }
+      />
 
+      {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      {user?.role === 'patient' && (
         <SectionCard
-          title="Filters"
-          action={<p className="text-xs text-slate-500">Search quickly</p>}
+          title="Book Appointment"
+          action={<Badge label={`${items.filter((item) => item.status === 'booked').length} active`} variant="booked" />}
         >
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <label className="text-slate-600">
-              Status
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-              >
-                <option value="all">All</option>
-                <option value="booked">Booked</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </label>
-            <label className="text-slate-600">
-              Date
-              <input
-                type="date"
-                value={filters.date}
-                onChange={(e) => setFilters((f) => ({ ...f, date: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-              />
-            </label>
-          </div>
+          <AppointmentForm onBook={handleBook} />
         </SectionCard>
-      </div>
+      )}
 
-      {user?.role === 'patient' && rescheduleTarget && (
+      {rescheduleTarget && (
         <SectionCard
-          title="Reschedule appointment"
+          title="Reschedule Appointment"
           action={
-            <button
-              type="button"
-              onClick={() => setRescheduleTarget(null)}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-700"
-            >
+            <Button variant="secondary" size="sm" onClick={() => setRescheduleTarget(null)}>
               Close
-            </button>
+            </Button>
           }
         >
-          <form className="grid gap-3 md:grid-cols-3" onSubmit={handleReschedule}>
-            <label className="text-sm text-slate-600">
+          <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto]" onSubmit={handleReschedule}>
+            <label className="block text-sm font-medium text-slate-700">
               Date
               <input
                 type="date"
-                min={new Date().toISOString().slice(0, 10)}
+                min={getLocalDateISO()}
                 value={rescheduleForm.date}
-                onChange={(e) => setRescheduleForm({ date: e.target.value, time: '' })}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setRescheduleForm({ date: event.target.value, time: '' })}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
                 required
               />
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="block text-sm font-medium text-slate-700">
               Slot
               <select
                 value={rescheduleForm.time}
-                onChange={(e) => setRescheduleForm((form) => ({ ...form, time: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+                onChange={(event) => setRescheduleForm((current) => ({ ...current, time: event.target.value }))}
+                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
                 disabled={slotsLoading}
                 required
               >
                 <option value="">{slotsLoading ? 'Loading slots...' : 'Select slot'}</option>
                 {slots.map((slot) => (
                   <option key={slot.id} value={slot.startTime}>
-                    {formatTimeRange(slot)} • {formatShortLocation(slot)}
+                    {formatTimeRange(slot)} - {formatShortLocation(slot)}
                   </option>
                 ))}
               </select>
             </label>
-            <div className="flex items-end justify-end">
-              <button
-                type="submit"
-                disabled={updatingId === rescheduleTarget.id}
-                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+            <div className="flex items-end">
+              <Button type="submit" disabled={updatingId === rescheduleTarget.id}>
                 Save
-              </button>
+              </Button>
             </div>
           </form>
-          {!slotsLoading && slots.length === 0 && (
-            <p className="mt-2 text-xs text-slate-500">No open slots for this doctor on the selected date.</p>
-          )}
         </SectionCard>
       )}
 
       <SectionCard
-        title="Appointments list"
-        action={<span className="text-xs text-slate-500">{filtered.length} results</span>}
+        title="My Appointments"
+        action={
+          <label className="block text-sm font-medium text-slate-700">
+            <span className="sr-only">Filter by date</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm"
+            />
+          </label>
+        }
       >
+        <div className="mb-4 flex flex-wrap gap-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${
+                  activeTab === tab.key ? 'border-brand-200 bg-brand-50 text-brand-800' : 'border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                <Icon size={16} aria-hidden="true" />
+                {tab.label}
+                <span className="rounded bg-white px-1.5 py-0.5 text-xs">{counts[tab.key] || 0}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {loading ? (
-          <p className="text-sm text-slate-500">Loading appointments...</p>
-        ) : error ? (
-          <p className="text-sm text-rose-600">{error}</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {filtered.map((appt) => (
+          <p className="text-sm text-slate-600">Loading appointments...</p>
+        ) : visibleItems.length > 0 ? (
+          <div className="grid gap-3">
+            {visibleItems.map((appointment) => (
               <AppointmentCard
-                key={appt.id}
-                appointment={appt}
+                key={appointment.id}
+                appointment={appointment}
+                role={user?.role}
                 onCancel={user?.role === 'patient' ? handleCancel : undefined}
                 onDelete={user?.role === 'patient' ? handleDelete : undefined}
                 onReschedule={user?.role === 'patient' ? startReschedule : undefined}
-                deleting={deletingId === appt.id}
-                updating={updatingId === appt.id}
+                deleting={deletingId === appointment.id}
+                updating={updatingId === appointment.id}
               />
             ))}
-            {filtered.length === 0 && <p className="text-sm text-slate-500">No appointments match the filters.</p>}
           </div>
+        ) : (
+          <EmptyState
+            icon={CalendarDays}
+            title={`No ${tabs.find((tab) => tab.key === activeTab)?.label.toLowerCase()} appointments`}
+            text="Appointments will appear here when they match the selected status and date."
+          />
         )}
       </SectionCard>
     </DashboardLayout>

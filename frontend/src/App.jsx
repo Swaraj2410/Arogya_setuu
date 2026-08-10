@@ -9,6 +9,12 @@ import AdminDashboard from './pages/AdminDashboard';
 import AppointmentPage from './pages/AppointmentPage';
 import MedicalRecordsPage from './pages/MedicalRecordsPage';
 import NotificationsPage from './pages/NotificationsPage';
+import DoctorsPage from './pages/DoctorsPage';
+import DoctorDetailsPage from './pages/DoctorDetailsPage';
+import VillageVisitsPage from './pages/VillageVisitsPage';
+import PrescriptionsPage from './pages/PrescriptionsPage';
+import AIAssistantPage from './pages/AIAssistantPage';
+import ProfilePage from './pages/ProfilePage';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './state/AuthContext';
@@ -56,6 +62,42 @@ export default function App() {
         }
       />
       <Route
+        path="/doctors"
+        element={
+          <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
+            <DoctorsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctors/:id"
+        element={
+          <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
+            <DoctorDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/village-visits"
+        element={
+          <ProtectedRoute roles={['patient', 'admin']}>
+            <VillageVisitsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/schedule"
+        element={
+          <ProtectedRoute roles={['doctor']}>
+            <VillageVisitsPage mode="doctor" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/visits"
+        element={<Navigate to="/doctor/schedule" replace />}
+      />
+      <Route
         path="/records"
         element={
           <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
@@ -64,10 +106,34 @@ export default function App() {
         }
       />
       <Route
+        path="/prescriptions"
+        element={
+          <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
+            <PrescriptionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/notifications"
         element={
           <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
             <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-assistant"
+        element={
+          <ProtectedRoute roles={['patient']}>
+            <AIAssistantPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute roles={['patient', 'doctor', 'admin']}>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

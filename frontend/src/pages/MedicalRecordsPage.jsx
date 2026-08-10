@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import DashboardLayout from '../layouts/DashboardLayout';
-import SectionCard from '../components/SectionCard';
+import { FileText, Search } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
+import PageHeader from '../components/PageHeader';
 import RecordCard from '../components/RecordCard';
-import { useAuth } from '../state/AuthContext';
+import SectionCard from '../components/SectionCard';
+import DashboardLayout from '../layouts/DashboardLayout';
 import { fetchRecords } from '../api/records';
+import { useAuth } from '../state/AuthContext';
 
 export default function MedicalRecordsPage() {
   const { user } = useAuth();
@@ -13,82 +16,85 @@ export default function MedicalRecordsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchRecords({
-        patientId: user?.role === 'patient' ? user?.patientId : undefined,
-        doctorId: user?.role === 'doctor' ? user?.doctorId : undefined,
-        date: date || undefined
-      });
-      setRecords(data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load records');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await fetchRecords({
+          patientId: user?.role === 'patient' ? user?.patientId : undefined,
+          doctorId: user?.role === 'doctor' ? user?.doctorId : undefined,
+          date: date || undefined,
+          q: query || undefined
+        });
+        setRecords(data || []);
+      } catch (err) {
+        setError(err.response?.data?.message || 'We could not load medical records.');
+        setRecords([]);
+      } finally {
+        setLoading(false);
+      }
+    };
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, user?.id]);
+  }, [date, query, user?.id, user?.role, user?.patientId, user?.doctorId]);
 
-  const filtered = useMemo(() => {
-    return records.filter((rec) => {
-      if (query && !`${rec.diagnosis} ${rec.treatment} ${rec.notes}`.toLowerCase().includes(query.toLowerCase()))
-        return false;
-      return true;
-    });
-  }, [query, records]);
+  const filtered = useMemo(() => records, [records]);
 
   return (
     <DashboardLayout
       role={user?.role || 'patient'}
-      title="Medical records"
-      subtitle="Secure, role-based access to visit notes and prescriptions"
+      title="Medical Records"
+      subtitle="Secure consultation history and linked prescriptions"
     >
-      <SectionCard
-        title="Search & filter"
-        action={<span className="text-xs text-slate-500">{filtered.length} visible</span>}
-      >
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm text-slate-600">
+      <PageHeader
+        eyebrow="Medical timeline"
+        title={user?.role === 'doctor' ? 'Patient records' : 'Your medical records'}
+        text="Consultation records appear after a doctor completes a visit. Prescriptions remain linked to each record."
+      />
+
+      <SectionCard title="Search Records" action={<span className="text-sm text-slate-500">{filtered.length} records</span>}>
+        <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+          <label className="block text-sm font-medium text-slate-700">
             Keyword
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Diagnosis, treatment, note..."
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
-            />
+            <div className="relative mt-1">
+              <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden="true" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Diagnosis, treatment, notes"
+                className="h-11 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 text-sm"
+              />
+            </div>
           </label>
-          <label className="text-sm text-slate-600">
+          <label className="block text-sm font-medium text-slate-700">
             Visit date
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+              onChange={(event) => setDate(event.target.value)}
+              className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
             />
           </label>
         </div>
       </SectionCard>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading records...</p>
-        ) : error ? (
-          <p className="text-sm text-rose-600">{error}</p>
-        ) : (
-          <>
-            {filtered.map((rec) => (
-              <RecordCard key={rec.id} record={rec} />
-            ))}
-            {filtered.length === 0 && <p className="text-sm text-slate-500">No records match the filters.</p>}
-          </>
-        )}
-      </div>
+      {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      {loading ? (
+        <p className="text-sm text-slate-600">Loading medical records...</p>
+      ) : filtered.length > 0 ? (
+        <div className="space-y-3">
+          {filtered.map((record) => (
+            <RecordCard key={record.id} record={record} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={FileText}
+          title="No medical records yet"
+          text="Your consultation records will appear here after your doctor adds them."
+        />
+      )}
     </DashboardLayout>
   );
 }
