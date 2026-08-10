@@ -228,8 +228,8 @@
       clinical records.
     </p>
     <p>
-      The proposed project follows this direction by using a React frontend, an Express backend API, Sequelize
-      models, MySQL persistence, JWT authentication, bcrypt password hashing, and role-based middleware. The
+      The proposed project follows this direction by using a React frontend, a Spring Boot backend API, Spring Data
+      JPA/Hibernate persistence, MySQL storage, JWT authentication, BCrypt password hashing, and role-based security. The
       system is developed incrementally so that authentication, appointments, records, prescriptions, notifications,
       and reports can be delivered and tested as separate but connected modules.
     </p>
@@ -373,8 +373,8 @@
     </p>
     <p>
       The requirements were also checked for feasibility against the chosen technology stack. The React frontend,
-      Express backend, Sequelize ORM, MySQL database, JWT authentication, and REST API structure support the
-      required functionality. Automated backend tests using Jest and Supertest support requirement verification.
+      Spring Boot backend, Spring Data JPA/Hibernate ORM, MySQL database, JWT authentication, and REST API structure support the
+      required functionality. Automated backend tests using JUnit and Spring Boot Test support requirement verification.
     </p>
 
     <h2>5.5&nbsp;&nbsp;Requirement Specification and Documentation</h2>
@@ -598,7 +598,7 @@
     <p>Key server-side hardware requirements include:</p>
     <ul>
       <li>Multi-core processor for concurrent request handling.</li>
-      <li>Adequate RAM for Node.js services, database connections, and caching if added later.</li>
+      <li>Adequate RAM for Spring Boot services, database connections, and caching if added later.</li>
       <li>SSD storage for fast database access and application deployment.</li>
       <li>Backup storage for database recovery and data protection.</li>
       <li>Optional load balancer for future multi-server deployment.</li>
@@ -643,12 +643,12 @@
     </p>
     <ul>
       <li>Operating System: macOS, Linux, or Windows for development; Linux preferred for deployment.</li>
-      <li>Runtime: Node.js for backend execution.</li>
-      <li>Backend Framework: Express.js.</li>
+      <li>Runtime: Java 17+ for backend execution.</li>
+      <li>Backend Framework: Spring Boot.</li>
       <li>Database Management System: MySQL.</li>
-      <li>ORM: Sequelize for model definitions and database interaction.</li>
-      <li>Authentication Tools: JWT and bcrypt.</li>
-      <li>Testing Tools: Jest and Supertest.</li>
+      <li>ORM: Spring Data JPA and Hibernate for entity definitions and database interaction.</li>
+      <li>Authentication Tools: JWT and BCrypt.</li>
+      <li>Testing Tools: JUnit and Spring Boot Test.</li>
     </ul>
 
     <h3 class="indent-heading">9.2.2&nbsp;&nbsp;Client-Side Software Requirements</h3>

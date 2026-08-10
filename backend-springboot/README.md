@@ -1,7 +1,6 @@
 # Arogya Rural Spring Boot Backend
 
-This is the Java Spring Boot replacement for the original `backend/` Node.js + Express + Sequelize API.
-The old backend is intentionally kept in the repository as a reference.
+This is the Java Spring Boot backend for Arogya Rural.
 
 ## Technology Stack
 

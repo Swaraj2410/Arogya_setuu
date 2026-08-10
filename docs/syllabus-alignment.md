@@ -2,7 +2,7 @@
 
 Project: Smart Hospital Appointment and Record Management System
 
-This document maps the project to the Software Engineering syllabus units. The project is a role-based full-stack healthcare system with a React frontend, Express API, Sequelize models, MySQL persistence, JWT authentication, appointments, records, prescriptions, notifications, reports, and automated backend tests.
+This document maps the project to the Software Engineering syllabus units. The project is a role-based full-stack healthcare system with a React frontend, Spring Boot API, Spring Data JPA/Hibernate persistence, MySQL storage, JWT authentication, appointments, records, prescriptions, notifications, reports, and automated backend tests.
 
 ## Unit I: Software Engineering Paradigms
 
@@ -73,7 +73,7 @@ Out of scope for the current version:
 
 | Feasibility type | Assessment |
 | --- | --- |
-| Technical | Feasible with React, Express, Sequelize, MySQL, JWT, and REST APIs already present in the repo. |
+| Technical | Feasible with React, Spring Boot, Spring Data JPA/Hibernate, MySQL, JWT, and REST APIs already present in the repo. |
 | Operational | Feasible because the workflows match common patient, doctor, and admin tasks. |
 | Economic | Feasible for an academic project because it uses open-source tools. |
 | Schedule | Feasible through incremental delivery over four sprints. |
@@ -83,15 +83,15 @@ Out of scope for the current version:
 
 | ID | Requirement | Current project location |
 | --- | --- | --- |
-| FR-01 | The system shall allow users to register as patient, doctor, or admin. | `backend/src/controllers/authController.js`, `frontend/src/pages/RegisterPage.jsx` |
-| FR-02 | The system shall authenticate users and issue JWT tokens. | `backend/src/controllers/authController.js`, `backend/src/utils/jwt.js` |
-| FR-03 | The system shall protect routes based on user role. | `backend/src/middleware/auth.js`, `frontend/src/components/ProtectedRoute.jsx` |
-| FR-04 | Patients shall be able to view doctors and book appointments. | `frontend/src/pages/AppointmentPage.jsx`, `backend/src/controllers/appointmentController.js` |
-| FR-05 | Doctors shall be able to view appointments assigned to them. | `frontend/src/pages/DoctorDashboard.jsx`, `backend/src/controllers/appointmentController.js` |
-| FR-06 | Doctors shall be able to create and view medical records. | `frontend/src/pages/MedicalRecordsPage.jsx`, `backend/src/controllers/recordController.js` |
-| FR-07 | The system shall support prescriptions linked to medical records. | `backend/src/controllers/prescriptionController.js`, `backend/src/models/Prescription.js` |
-| FR-08 | Users shall receive system notifications. | `backend/src/controllers/notificationController.js`, `backend/src/models/Notification.js` |
-| FR-09 | Admins shall view summary reports. | `frontend/src/pages/AdminDashboard.jsx`, `backend/src/controllers/reportController.js` |
+| FR-01 | The system shall allow users to register as patient, doctor, or admin. | `backend-springboot/src/main/java/com/arogya/rural/controller/AuthController.java`, `frontend/src/pages/RegisterPage.jsx` |
+| FR-02 | The system shall authenticate users and issue JWT tokens. | `backend-springboot/src/main/java/com/arogya/rural/controller/AuthController.java`, `backend-springboot/src/main/java/com/arogya/rural/security/JwtService.java` |
+| FR-03 | The system shall protect routes based on user role. | `backend-springboot/src/main/java/com/arogya/rural/security/SecurityConfig.java`, `frontend/src/components/ProtectedRoute.jsx` |
+| FR-04 | Patients shall be able to view doctors and book appointments. | `frontend/src/pages/AppointmentPage.jsx`, `backend-springboot/src/main/java/com/arogya/rural/controller/AppointmentController.java` |
+| FR-05 | Doctors shall be able to view appointments assigned to them. | `frontend/src/pages/DoctorDashboard.jsx`, `backend-springboot/src/main/java/com/arogya/rural/controller/AppointmentController.java` |
+| FR-06 | Doctors shall be able to create and view medical records. | `frontend/src/pages/MedicalRecordsPage.jsx`, `backend-springboot/src/main/java/com/arogya/rural/controller/MedicalRecordController.java` |
+| FR-07 | The system shall support prescriptions linked to medical records. | `backend-springboot/src/main/java/com/arogya/rural/controller/PrescriptionController.java`, `backend-springboot/src/main/java/com/arogya/rural/entity/Prescription.java` |
+| FR-08 | Users shall receive system notifications. | `backend-springboot/src/main/java/com/arogya/rural/controller/NotificationController.java`, `backend-springboot/src/main/java/com/arogya/rural/entity/Notification.java` |
+| FR-09 | Admins shall view summary reports. | `frontend/src/pages/AdminDashboard.jsx`, `backend-springboot/src/main/java/com/arogya/rural/controller/ReportController.java` |
 
 ### Non-Functional Requirements
 
@@ -101,9 +101,9 @@ Out of scope for the current version:
 | Privacy | Patients should only access their own records unless the role permits broader access. |
 | Reliability | API failures should not break the frontend; current dashboards use mock-data fallback. |
 | Usability | Dashboards should show high-priority tasks such as upcoming visits and recent records first. |
-| Maintainability | Frontend pages, API clients, backend controllers, routes, and models should remain separated. |
+| Maintainability | Frontend pages, API clients, backend controllers, services, repositories, and entities should remain separated. |
 | Performance | Database indexes should support common appointment and record filters. |
-| Testability | Route-level backend behavior should be covered with Jest and Supertest. |
+| Testability | Backend behavior should be covered with JUnit and Spring Boot Test. |
 
 ### Domain Requirements
 
@@ -161,10 +161,10 @@ Good requirements in this project should be:
 
 | Sprint | Goal | Deliverables |
 | --- | --- | --- |
-| Sprint 1 | Core setup and authentication | React shell, Express app, Sequelize models, JWT login/register, protected routes. |
+| Sprint 1 | Core setup and authentication | React shell, Spring Boot app, JPA entities, JWT login/register, protected routes. |
 | Sprint 2 | Appointment workflow | Doctor listing, booking API, appointment listing, update status, patient dashboard. |
 | Sprint 3 | Clinical record workflow | Medical record pages, record APIs, prescription APIs, doctor dashboard updates. |
-| Sprint 4 | Notifications, reporting, and testing | Notification APIs, admin reports, seed data, Jest/Supertest coverage, docs. |
+| Sprint 4 | Notifications, reporting, and testing | Notification APIs, admin reports, LGD location import support, JUnit/Spring Boot coverage, docs. |
 
 ### Agile Principles Applied
 
@@ -301,22 +301,26 @@ flowchart LR
   React[React Frontend]
   AuthContext[AuthContext]
   ApiClients[Frontend API Clients]
-  Express[Express API]
-  Middleware[Auth and Role Middleware]
+  Spring[Spring Boot API]
+  Security[Spring Security JWT Filter]
   Controllers[Controllers]
-  Sequelize[Sequelize Models]
+  Services[Services]
+  Repositories[Spring Data JPA Repositories]
+  Hibernate[Hibernate]
   MySQL[(MySQL Database)]
-  Email[Email Service]
+  Notifications[Notification Service]
 
   Browser --> React
   React --> AuthContext
   React --> ApiClients
-  ApiClients --> Express
-  Express --> Middleware
-  Express --> Controllers
-  Controllers --> Sequelize
-  Sequelize --> MySQL
-  Controllers --> Email
+  ApiClients --> Spring
+  Spring --> Security
+  Spring --> Controllers
+  Controllers --> Services
+  Services --> Repositories
+  Repositories --> Hibernate
+  Hibernate --> MySQL
+  Services --> Notifications
 ```
 
 ### Deployment Diagram
@@ -332,7 +336,7 @@ flowchart TB
   end
 
   subgraph Backend_Host[Backend Host]
-    Node[Node.js Express Server]
+    SpringBoot[Spring Boot Server]
   end
 
   subgraph Database_Server[Database Server]
@@ -340,8 +344,8 @@ flowchart TB
   end
 
   Browser --> ViteBuild
-  ViteBuild --> Node
-  Node --> DB
+  ViteBuild --> SpringBoot
+  SpringBoot --> DB
 ```
 
 ### Sequence Diagram: Book Appointment
@@ -350,19 +354,22 @@ flowchart TB
 sequenceDiagram
   actor Patient
   participant UI as React Appointment Page
-  participant API as Express Appointment API
-  participant Auth as Auth Middleware
-  participant Model as Appointment Model
+  participant API as Spring Boot Appointment API
+  participant Auth as Spring Security JWT Filter
+  participant Service as Appointment Service
+  participant Repo as Appointment Repository
   participant DB as MySQL
 
   Patient->>UI: Select doctor, date, time, reason
   UI->>API: POST /api/appointments
   API->>Auth: Validate JWT and role
   Auth-->>API: Authorized request
-  API->>Model: Appointment.create(...)
-  Model->>DB: Insert appointment
-  DB-->>Model: Created row
-  Model-->>API: Appointment
+  API->>Service: createAppointment(request)
+  Service->>Repo: save(appointment)
+  Repo->>DB: Insert appointment
+  DB-->>Repo: Created row
+  Repo-->>Service: Appointment
+  Service-->>API: AppointmentResponse
   API-->>UI: 201 Created
   UI-->>Patient: Show booking confirmation
 ```
@@ -393,9 +400,11 @@ flowchart TD
 flowchart LR
   A[1. DoctorDashboard] --> B[2. fetchAppointments]
   B --> C[3. GET /api/appointments?doctorId]
-  C --> D[4. listAppointments Controller]
-  D --> E[5. Appointment.findAll]
-  E --> F[6. MySQL]
+  C --> D[4. AppointmentController]
+  D --> E[5. AppointmentService]
+  E --> F[6. AppointmentRepository]
+  F --> G[7. MySQL]
+  G --> F
   F --> E
   E --> D
   D --> C
@@ -410,17 +419,17 @@ flowchart LR
   Doctor[Doctor]
   RecordsPage[MedicalRecordsPage]
   RecordsApi[records.js API Client]
-  Route[recordRoutes.js]
-  Controller[recordController.js]
-  Model[MedicalRecord Model]
+  Controller[MedicalRecordController.java]
+  Service[MedicalRecordService.java]
+  Repository[MedicalRecordRepository.java]
   DB[(MySQL)]
 
   Doctor -- "1. Submit diagnosis and notes" --> RecordsPage
   RecordsPage -- "2. createRecord(payload)" --> RecordsApi
-  RecordsApi -- "3. POST /records" --> Route
-  Route -- "4. authGuard + roleGuard" --> Controller
-  Controller -- "5. MedicalRecord.create" --> Model
-  Model -- "6. INSERT" --> DB
+  RecordsApi -- "3. POST /records" --> Controller
+  Controller -- "4. Validate role and request" --> Service
+  Service -- "5. save(record)" --> Repository
+  Repository -- "6. INSERT" --> DB
 ```
 
 ## Unit V: Software Architecture Design
@@ -434,43 +443,44 @@ The system uses a layered client-server MVC-style architecture.
 | View | React pages and reusable UI components. | `frontend/src/pages`, `frontend/src/components` |
 | Client state and routing | Auth context, protected routes, browser navigation. | `frontend/src/state/AuthContext.jsx`, `frontend/src/App.jsx` |
 | API client | HTTP communication with backend. | `frontend/src/api` |
-| Controller | Request handling and response shaping. | `backend/src/controllers` |
-| Middleware | Authentication, authorization, parsing, CORS. | `backend/src/middleware`, `backend/src/app.js` |
-| Model | Domain entities and associations. | `backend/src/models` |
-| Persistence | Relational storage. | MySQL through Sequelize |
+| Controller | Request handling and response shaping. | `backend-springboot/src/main/java/com/arogya/rural/controller` |
+| Security | Authentication, authorization, CORS, and JWT validation. | `backend-springboot/src/main/java/com/arogya/rural/security` |
+| Service | Business rules and role-scoped workflow logic. | `backend-springboot/src/main/java/com/arogya/rural/service` |
+| Model | Domain entities and associations. | `backend-springboot/src/main/java/com/arogya/rural/entity` |
+| Persistence | Relational storage. | MySQL through Spring Data JPA and Hibernate |
 
 ### Software Architecture vs Software Design
 
 | Topic | In this project |
 | --- | --- |
-| Architecture | Decides the system structure: React client, Express server, REST APIs, MySQL database, layered backend. |
-| Design | Decides internal module behavior: components, controllers, model associations, API clients, validation, and status transitions. |
+| Architecture | Decides the system structure: React client, Spring Boot server, REST APIs, MySQL database, layered backend. |
+| Design | Decides internal module behavior: components, controllers, services, entity associations, API clients, validation, and status transitions. |
 
 ### Design Qualities
 
 | Quality | Current support |
 | --- | --- |
-| Modularity | Routes, controllers, models, and UI components are separated. |
+| Modularity | Controllers, services, repositories, entities, and UI components are separated. |
 | Reusability | Cards, layout, protected route, API client, and auth context are reused. |
-| Maintainability | Each domain area has separate route/controller/model files. |
+| Maintainability | Each domain area has separate controller/service/repository/entity files. |
 | Security | JWT, bcrypt, and role guards are present. |
 | Scalability | REST endpoints and database indexes support extension. |
-| Testability | Backend tests cover auth and appointment behavior. |
+| Testability | Spring Boot tests cover auth and appointment behavior. |
 
 ### Cohesion and Coupling
 
-- High cohesion: `appointmentController.js` focuses on appointment use cases; `DoctorDashboard.jsx` focuses on doctor-facing view composition.
+- High cohesion: `AppointmentController.java` handles appointment HTTP requests, `AppointmentService.java` owns appointment business rules, and `DoctorDashboard.jsx` focuses on doctor-facing view composition.
 - Low coupling: frontend uses API modules instead of calling Axios directly from every component.
-- Acceptable coupling: Sequelize associations connect models where the domain requires relationships.
-- Improvement point: add stricter service-layer validation for appointment slot conflicts and record access policies.
+- Acceptable coupling: JPA associations connect entities where the domain requires relationships.
+- Improvement point: continue expanding service-layer validation for appointment slot conflicts and record access policies.
 
 ### Design Principles and Heuristics
 
 - Separate concerns between UI, API client, controller, model, and database.
-- Keep role checks close to protected routes and middleware.
+- Keep role checks in Spring Security and service-layer authorization.
 - Prefer reusable UI components over repeated dashboard markup.
 - Validate required fields on the server.
-- Keep database associations explicit.
+- Keep JPA associations explicit.
 - Use indexes for common appointment and record queries.
 - Keep mock data available only as a frontend resilience fallback, not as source of truth.
 
@@ -481,8 +491,8 @@ The system uses a layered client-server MVC-style architecture.
 | `DashboardLayout` | Common dashboard shell for patient, doctor, and admin views. |
 | `SectionCard`, `StatCard`, `AppointmentCard`, `RecordCard` | Reusable information display patterns. |
 | `api/client.js` | Central Axios configuration and auth token management. |
-| `authGuard` and `roleGuard` | Reusable backend security middleware. |
-| Sequelize models | Shared persistence layer for controllers and tests. |
+| Spring Security configuration and JWT filter | Reusable backend authentication and authorization. |
+| Spring Data JPA repositories | Shared persistence layer for services and tests. |
 
 ## Unit VI: Design Patterns
 
@@ -490,11 +500,11 @@ The system uses a layered client-server MVC-style architecture.
 
 | Pattern | Type | Project mapping |
 | --- | --- | --- |
-| MVC | Architectural | React pages are views, Express controllers handle request logic, Sequelize models represent data. |
+| MVC | Architectural | React pages are views, Spring MVC controllers handle request logic, and JPA entities represent data. |
 | Facade | Structural | Frontend API modules such as `appointments.js`, `records.js`, and `auth.js` hide Axios request details from pages. |
 | Adapter | Structural | `frontend/src/api/client.js` adapts Axios to the app's API configuration and token storage needs. |
-| Chain of Responsibility | Behavioral | Express middleware chain passes requests through CORS, JSON parsing, auth guards, role guards, and controllers. |
-| Factory Method | Creational | Sequelize model methods such as `Model.create` and `findOrCreate` centralize object creation from request data. |
+| Chain of Responsibility | Behavioral | Spring Security filter chain passes requests through CORS, JWT validation, authentication, authorization, and controllers. |
+| Repository | Structural | Spring Data JPA repositories centralize persistence access for services. |
 
 ### Patterns That Can Be Added for Stronger Syllabus Coverage
 
@@ -507,7 +517,7 @@ The system uses a layered client-server MVC-style architecture.
 | Composite | Dashboard widgets | Treat single widgets and grouped widgets uniformly in admin dashboard configuration. |
 | Decorator | API logging or response formatting | Wrap controller handlers with logging, timing, or error formatting behavior. |
 | Command | Appointment actions | Represent book, cancel, reschedule, and complete actions as command objects. |
-| Interpreter | Search filters | Parse simple record search expressions into Sequelize query filters. |
+| Interpreter | Search filters | Parse simple record search expressions into JPA query specifications. |
 
 ## Traceability Matrix
 
@@ -517,15 +527,15 @@ The system uses a layered client-server MVC-style architecture.
 | Unit II: Requirements engineering | Functional/non-functional/domain requirements in this document and API surface in `docs/api.md`. |
 | Unit III: Agile methodology | Product backlog, user stories, sprint plan, Scrum roles. |
 | Unit IV: Modeling | Use case, class, component, deployment, sequence, activity, communication, and collaboration diagrams. |
-| Unit V: Architecture design | Layered MVC client-server architecture with React, Express, Sequelize, and MySQL. |
+| Unit V: Architecture design | Layered MVC client-server architecture with React, Spring Boot, Spring Data JPA/Hibernate, and MySQL. |
 | Unit VI: Design patterns | Facade, adapter, chain of responsibility, factory method, and proposed extensions. |
 
 ## Suggested Viva Points
 
 - The project is not just a CRUD app; it has role-based access, domain relationships, appointment lifecycle, medical records, notifications, and reports.
 - Incremental development is the best process model because each healthcare workflow can be delivered and tested independently.
-- Requirements are traceable from stakeholder goals to React pages, API routes, controllers, Sequelize models, and tests.
+- Requirements are traceable from stakeholder goals to React pages, API endpoints, controllers, services, JPA entities, and tests.
 - Static modeling is represented by use case, class, component, and deployment diagrams.
 - Dynamic modeling is represented by appointment booking, doctor visit, appointment listing, and record creation interactions.
 - The architecture is layered and client-server, with MVC-style separation on the backend.
-- Design patterns are present through middleware chains, API facades, Axios adaptation, and Sequelize creation methods.
+- Design patterns are present through the Spring Security filter chain, API facades, Axios adaptation, and repository persistence access.

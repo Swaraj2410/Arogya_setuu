@@ -26,7 +26,11 @@ Patient payload:
   "gender": "Female",
   "phone": "9876543210",
   "address": "Pune",
-  "bloodGroup": "A+"
+  "bloodGroup": "A+",
+  "state": "Maharashtra",
+  "district": "Gondia",
+  "taluka": "Tirora",
+  "village": "Mundikota"
 }
 ```
 
@@ -87,6 +91,30 @@ Optional query:
 ?specialization=1
 ```
 
+## Locations
+
+### `GET /locations/states`
+
+Lists imported states for the cascading location dropdowns.
+
+### `GET /locations/districts`
+
+```text
+?stateCode=27
+```
+
+### `GET /locations/talukas`
+
+```text
+?districtCode=507
+```
+
+### `GET /locations/villages`
+
+```text
+?talukaCode=4184
+```
+
 ## Availability
 
 ### `GET /availability`
@@ -96,7 +124,7 @@ Lists doctor availability slots.
 Optional query:
 
 ```text
-?doctorId=1&date=2030-04-02
+?doctorId=1&date=2030-04-02&state=Maharashtra&district=Gondia&taluka=Tirora&village=Mundikota
 ```
 
 Response includes `isBooked` so the frontend can show only open slots for booking.
@@ -110,11 +138,15 @@ Creates a doctor availability slot. Doctors can create only their own slots.
   "doctorId": 1,
   "availableDate": "2030-04-02",
   "startTime": "10:30",
-  "endTime": "11:00"
+  "endTime": "11:00",
+  "state": "Maharashtra",
+  "district": "Gondia",
+  "taluka": "Tirora",
+  "village": "Mundikota"
 }
 ```
 
-### `DELETE /availability/:id`
+### `DELETE /availability/{id}`
 
 Deletes an open availability slot. A booked slot cannot be deleted.
 
@@ -157,7 +189,7 @@ Backend validation:
 - slot must not already have a booked appointment,
 - appointment date cannot be in the past.
 
-### `PATCH /appointments/:id`
+### `PATCH /appointments/{id}`
 
 Updates appointment status, date, time, or reason.
 
@@ -192,7 +224,7 @@ Allowed statuses:
 - `completed`
 - `cancelled`
 
-### `DELETE /appointments/:id`
+### `DELETE /appointments/{id}`
 
 Deletes an appointment from the database. Patients can delete only their own appointments. Deleted
 appointments no longer appear on the patient page or doctor dashboard.
@@ -226,7 +258,7 @@ Creates a medical record. Patients cannot create records.
 }
 ```
 
-### `PATCH /records/:id`
+### `PATCH /records/{id}`
 
 Updates diagnosis, treatment, notes, or visit date.
 
@@ -264,7 +296,7 @@ The backend verifies that the prescription patient and doctor match the selected
 
 Lists notifications for the authenticated user.
 
-### `PATCH /notifications/:id/read`
+### `PATCH /notifications/{id}/read`
 
 Marks a notification as read.
 
@@ -284,8 +316,8 @@ Response includes appointment status counts and doctor counts by specialization.
 
 ## Security Rules
 
-- JWT auth middleware protects all operational routes.
-- Passwords are hashed with bcrypt.
+- Spring Security and the JWT filter protect all operational routes.
+- Passwords are hashed with BCrypt.
 - Patients can access only their own appointments, records, prescriptions, and notifications.
 - Doctors can access only their own appointment and record data.
 - Patients cannot create medical records or prescriptions.

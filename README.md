@@ -127,34 +127,37 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 
 ### Backend
 
-- Node.js
-- Express.js
-- Sequelize ORM
+- Java 17+
+- Spring Boot 3.x
+- Maven
+- Spring MVC / Spring Web
+- Spring Data JPA
+- Hibernate
 - MySQL
+- Spring Security
 - JWT authentication
-- bcrypt password hashing
-- Nodemailer-ready notification service
-- Jest
-- Supertest
+- BCrypt password hashing
+- JUnit / Spring Boot Test
 
 ## Project Structure
 
 ```text
 Project/
-├── backend/
+├── backend-springboot/
+│   ├── pom.xml
 │   ├── src/
-│   │   ├── app.js
-│   │   ├── server.js
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── models/
-│   │   ├── routes/
-│   │   ├── seeders/
-│   │   ├── services/
-│   │   ├── tests/
-│   │   └── utils/
-│   └── package.json
+│   │   ├── main/java/com/arogya/rural/
+│   │   │   ├── config/
+│   │   │   ├── controller/
+│   │   │   ├── dto/
+│   │   │   ├── entity/
+│   │   │   ├── exception/
+│   │   │   ├── repository/
+│   │   │   ├── security/
+│   │   │   └── service/
+│   │   ├── main/resources/
+│   │   └── test/
+│   └── README.md
 ├── frontend/
 │   ├── src/
 │   │   ├── api/
@@ -187,18 +190,19 @@ Project/
 
 ## Main Backend Modules
 
-- `authController.js` - registration, login, current user.
-- `doctorController.js` - doctor listing.
-- `availabilityController.js` - doctor availability slots.
-- `appointmentController.js` - appointment booking, listing, update, delete.
-- `recordController.js` - medical record listing, creation, update.
-- `prescriptionController.js` - prescription listing and creation.
-- `notificationController.js` - notification listing and read status.
-- `reportController.js` - admin summary reports.
+- `AuthController.java` - registration, login, current user.
+- `DoctorController.java` - doctor listing.
+- `LocationController.java` - state, district, taluka, and village dropdown data.
+- `AvailabilityController.java` - doctor availability slots.
+- `AppointmentController.java` - appointment booking, listing, update, delete.
+- `MedicalRecordController.java` - medical record listing, creation, update.
+- `PrescriptionController.java` - prescription listing and creation.
+- `NotificationController.java` - notification listing and read status.
+- `ReportController.java` - admin summary reports.
 
 ## Database Entities
 
-The Sequelize models represent the core hospital domain:
+The JPA entities represent the core hospital domain:
 
 - `User`
 - `Patient`
@@ -247,20 +251,20 @@ Base path:
 
 - `GET /availability`
 - `POST /availability`
-- `DELETE /availability/:id`
+- `DELETE /availability/{id}`
 
 ### Appointments
 
 - `GET /appointments`
 - `POST /appointments`
-- `PATCH /appointments/:id`
-- `DELETE /appointments/:id`
+- `PATCH /appointments/{id}`
+- `DELETE /appointments/{id}`
 
 ### Medical Records
 
 - `GET /records`
 - `POST /records`
-- `PATCH /records/:id`
+- `PATCH /records/{id}`
 
 ### Prescriptions
 
@@ -270,7 +274,7 @@ Base path:
 ### Notifications
 
 - `GET /notifications`
-- `PATCH /notifications/:id/read`
+- `PATCH /notifications/{id}/read`
 
 ### Reports
 
@@ -280,10 +284,10 @@ See [docs/api.md](docs/api.md) for the API reference.
 
 ## Security
 
-- Passwords are hashed using bcrypt.
+- Passwords are hashed using BCrypt.
 - JWT tokens are issued after login and registration.
-- Protected backend routes use authentication middleware.
-- Role guards and controller checks restrict patient, doctor, and admin access.
+- Protected backend routes use Spring Security and a JWT filter.
+- Service-level checks restrict patient, doctor, and admin access.
 - Patients can only access their own appointments, records, prescriptions, and notifications.
 - Doctors can only access their own appointment queue and records.
 - Appointment booking and rescheduling require real availability slots.
@@ -293,40 +297,22 @@ See [docs/api.md](docs/api.md) for the API reference.
 ### 1. Backend Setup
 
 ```bash
-cd backend
-npm install
+cd backend-springboot
 ```
 
-Create `backend/.env` from `backend/.env.example`, keeping `DB_PASS` aligned with your MySQL password:
+Create the MySQL database:
 
-```env
-PORT=5001
-NODE_ENV=development
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASS=your_mysql_password
-DB_NAME=smart_hospital
-JWT_SECRET=your-secret-string
-JWT_EXPIRES_IN=7d
+```sql
+CREATE DATABASE arogya_rural;
 ```
 
-Start the backend:
+Create `src/main/resources/application-local.properties` from
+`src/main/resources/application-local.properties.example`, then set your MySQL password and JWT secret.
+
+Start the Spring Boot backend:
 
 ```bash
-npm run dev
-```
-
-Seed/reset the database:
-
-```bash
-npm run seed
-```
-
-For an existing MySQL database, add the rural location columns without recreating tables:
-
-```bash
-npm run migrate:rural
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 The local API runs at:
@@ -334,6 +320,9 @@ The local API runs at:
 ```text
 http://localhost:5001
 ```
+
+The backend can optionally import LGD state, district, taluka, and village CSV data. See
+[backend-springboot/README.md](backend-springboot/README.md) for the import steps.
 
 ### 2. Frontend Setup
 
@@ -361,26 +350,20 @@ You can override it with `frontend/.env`:
 VITE_API_URL=http://localhost:5001/api
 ```
 
-## Demo Credentials
+## Creating Users
 
-After running the seed script:
-
-- Patient: `ananya.sharma@example.com` / `password`
-- Doctor: `asha.iyer@example.com` / `password`
-- Admin: `admin@example.com` / `password`
-
-Seed data is only for initial demonstration. New doctors, patients, slots, appointments, records, and prescriptions
-are stored in the database through the application.
+Use the registration page or `POST /api/auth/register` to create patient, doctor, and admin accounts. Doctors,
+patients, slots, appointments, records, and prescriptions are stored in MySQL through the Spring Boot API.
 
 ## Testing
 
-Backend route tests live in `backend/src/tests/`.
+Backend tests live in `backend-springboot/src/test/`.
 
 Run tests:
 
 ```bash
-cd backend
-npm test
+cd backend-springboot
+mvn test
 ```
 
 Current tested workflows include:
@@ -411,8 +394,8 @@ npm run build
 Deliverables:
 
 - React app structure.
-- Express API setup.
-- Sequelize models.
+- Spring Boot API setup.
+- JPA entities and repositories.
 - MySQL connection.
 - JWT login/register.
 - Protected routes.
@@ -445,8 +428,8 @@ Deliverables:
 
 - Notifications.
 - Admin summary reports.
-- Seed data.
-- Jest/Supertest backend tests.
+- LGD location import support.
+- JUnit/Spring Boot backend tests.
 - SRS and syllabus documentation.
 
 ## Software Engineering Syllabus Mapping
@@ -496,13 +479,15 @@ React Frontend
   ↓
 Axios API Clients
   ↓
-Express Routes
+Spring MVC Controllers
   ↓
-Auth and Role Middleware
+Spring Security JWT Filter
   ↓
-Controllers
+Services
   ↓
-Sequelize Models
+Spring Data JPA Repositories
+  ↓
+Hibernate
   ↓
 MySQL Database
 ```
@@ -511,19 +496,19 @@ Architecture qualities:
 
 - Modular frontend pages and reusable components.
 - Centralized API clients.
-- Separated backend routes, controllers, middleware, and models.
+- Separated backend controllers, services, repositories, security, and entities.
 - Role-based access control.
 - Relational database persistence.
-- Automated backend route tests.
+- Automated Spring Boot service tests.
 
 ## Design Patterns Used
 
-- MVC-style architecture: React views, Express controllers, Sequelize models.
+- MVC-style architecture: React views, Spring MVC controllers, JPA entities.
 - Facade: frontend API modules hide Axios details.
 - Adapter: API client adapts Axios and token storage.
-- Chain of Responsibility: Express middleware chain.
-- Factory Method: Sequelize create/findOrCreate methods.
-- Repository-like model layer: Sequelize models encapsulate persistence operations.
+- Chain of Responsibility: Spring Security filter chain.
+- Repository: Spring Data JPA repositories encapsulate persistence operations.
+- DTO mapper: response mapper separates entity persistence from API response shape.
 
 ## Suggested PPT Structure
 
@@ -551,10 +536,10 @@ Use this slide order for presentation:
    - Admin
 
 5. Tech Stack
-   - React, Tailwind, Express, Sequelize, MySQL, JWT
+   - React, Tailwind, Spring Boot, Spring Data JPA, Hibernate, MySQL, JWT
 
 6. System Architecture
-   - Browser to React to Express to Sequelize to MySQL
+   - Browser to React to Spring Boot to Hibernate to MySQL
 
 7. Database Design
    - User, Patient, Doctor, Specialization, Availability, Appointment, Record, Prescription, Notification
@@ -585,7 +570,7 @@ Use this slide order for presentation:
     - Data scoping
 
 13. Testing
-    - Jest and Supertest
+    - JUnit and Spring Boot Test
     - Tested workflows
 
 14. Output Screens

@@ -6,6 +6,5 @@ coverage/
 .env
 *.log
 
-backend/.env
 frontend/.env.local
 frontend/.env.*.local
