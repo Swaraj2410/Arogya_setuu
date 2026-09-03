@@ -40,4 +40,6 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Lo
             where r.id = :id
             """)
     Optional<MedicalRecord> findByIdWithDetails(Long id);
+
+    boolean existsByDoctorIdAndPatientId(Long doctorId, Long patientId);
 }

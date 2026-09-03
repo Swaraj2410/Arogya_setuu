@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, Bot, CalendarDays, FileText, MapPin, Pill, Search, Stethoscope } from 'lucide-react';
+import AiSymptomAssistant from '../components/AiSymptomAssistant';
 import AppointmentCard from '../components/AppointmentCard';
 import Button from '../components/Button';
 import Card from '../components/Card';
@@ -177,7 +178,7 @@ export default function PatientDashboard() {
                   { to: '/doctors', icon: Search, title: 'Find Doctors', text: 'Search by name or specialization.' },
                   { to: '/village-visits', icon: MapPin, title: 'Village Visits', text: 'See schedules for your village.' },
                   { to: '/records', icon: FileText, title: 'Medical Records', text: 'Review consultation history.' },
-                  { to: '/ai-assistant', icon: Bot, title: 'AI Health Assistant', text: 'Future multilingual guidance UI.' }
+                  { to: '/ai-assistant', icon: Bot, title: 'AI Health Assistant', text: 'Symptom triage and doctor routing.' }
                 ].map((item) => (
                   <Link key={item.to} to={item.to} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-brand-200">
                     <item.icon size={20} className="text-brand-700" aria-hidden="true" />
@@ -213,6 +214,8 @@ export default function PatientDashboard() {
           )}
         </SectionCard>
       </section>
+
+      <AiSymptomAssistant compact doctorLimit={2} />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
         <SectionCard
@@ -271,12 +274,12 @@ export default function PatientDashboard() {
             count: records.reduce((total, record) => total + ((record.Prescriptions || record.prescriptions || []).length), 0)
           },
           { to: '/notifications', icon: Bell, title: 'Notifications', count: notifications.length },
-          { to: '/ai-assistant', icon: Bot, title: 'AI Assistant', count: 'Future' }
+          { to: '/ai-assistant', icon: Bot, title: 'AI Assistant', count: 'Ready' }
         ].map((item) => (
           <Link key={item.to} to={item.to} className="rounded-lg border border-slate-200 bg-white p-4 shadow-card hover:border-brand-200">
             <item.icon size={21} className="text-brand-700" aria-hidden="true" />
             <p className="mt-3 font-semibold text-slate-950">{item.title}</p>
-            <p className="mt-1 text-sm text-slate-600">{item.count} items</p>
+            <p className="mt-1 text-sm text-slate-600">{typeof item.count === 'number' ? `${item.count} items` : item.count}</p>
           </Link>
         ))}
       </section>

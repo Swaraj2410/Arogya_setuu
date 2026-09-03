@@ -2,6 +2,7 @@ package com.arogya.rural.service;
 
 import com.arogya.rural.dto.response.NotificationResponse;
 import com.arogya.rural.entity.Notification;
+import com.arogya.rural.entity.User;
 import com.arogya.rural.exception.ResourceNotFoundException;
 import com.arogya.rural.mapper.ResponseMapper;
 import com.arogya.rural.repository.NotificationRepository;
@@ -25,6 +26,12 @@ public class NotificationService {
                 .stream()
                 .map(responseMapper::toNotificationResponse)
                 .toList();
+    }
+
+    @Transactional
+    public NotificationResponse createForUser(User user, String title, String message, String type) {
+        Notification notification = new Notification(user, title, message, type);
+        return responseMapper.toNotificationResponse(notificationRepository.save(notification));
     }
 
     @Transactional

@@ -19,6 +19,9 @@ Arogya Rural solves common rural healthcare workflow problems:
 - Hospitals need reliable appointment lifecycle tracking.
 - Medical records and prescriptions should be stored digitally and accessed securely.
 - Admins need summary reports for hospital activity.
+- Patients need preliminary symptom triage that routes them to an existing doctor specialization without exposing
+  medical records to an AI provider.
+- Doctors need draft clinical documentation support while keeping final medical record saving under doctor review.
 
 The system supports three roles:
 
@@ -27,6 +30,134 @@ The system supports three roles:
 - `admin`
 
 Each role has protected routes, role-specific dashboards, and database-scoped access.
+
+## Quick Start: How to Run the Project
+
+Run the project with three local services:
+
+- Spring Boot backend on `http://localhost:5001`
+- FastAPI AI service on `http://localhost:8000`
+- React frontend on `http://localhost:5173`
+
+### Prerequisites
+
+- Java 17 or later
+- Maven
+- Node.js 18 or later
+- Python 3.11 or later
+- MySQL running locally
+- Gemini API key for AI features
+- Tesseract OCR for prescription image OCR
+
+Install Tesseract on macOS:
+
+```bash
+brew install tesseract
+```
+
+### 1. Start MySQL
+
+Create the local database:
+
+```sql
+CREATE DATABASE arogya_rural;
+```
+
+### 2. Start the AI Service
+
+```bash
+cd ai-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `ai-service/.env` and set your Gemini key:
+
+```env
+GEMINI_API_KEY=your_real_key_here
+GEMINI_MODEL=gemini-3.7-flash
+VOICE_MODEL=base
+VOICE_DEVICE=cpu
+VOICE_COMPUTE_TYPE=int8
+```
+
+Run FastAPI:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Check it:
+
+```bash
+curl http://localhost:8000/health
+```
+
+### 3. Start the Spring Boot Backend
+
+In a new terminal:
+
+```bash
+cd backend-springboot
+cp src/main/resources/application-local.properties.example src/main/resources/application-local.properties
+```
+
+Edit `src/main/resources/application-local.properties` and set:
+
+```properties
+spring.datasource.username=root
+spring.datasource.password=your_mysql_password
+jwt.secret=change-this-to-a-long-random-local-secret
+ai.service.base-url=http://localhost:8000
+```
+
+Run Spring Boot:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Check it:
+
+```bash
+curl http://localhost:5001/health
+```
+
+### 4. Start the React Frontend
+
+In a third terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+### Optional Verification Commands
+
+```bash
+cd backend-springboot
+mvn test
+```
+
+```bash
+cd frontend
+npm run build
+```
+
+```bash
+cd ai-service
+source .venv/bin/activate
+python3 -m compileall app
+```
 
 ## Key Features
 
@@ -45,6 +176,8 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 - Prescription viewing inside medical records.
 - Printable prescription sheet.
 - Patient-scoped notifications.
+- AI Symptom Assistant for preliminary triage and doctor-specialization routing.
+- Multilingual voice symptom entry in English, Hindi, and Marathi.
 
 ### Doctor Features
 
@@ -54,10 +187,14 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 - Doctor availability slot deletion when not booked.
 - Upcoming appointment queue.
 - Complete visit workflow.
+- AI Clinical Note Assistant for draft-only documentation inside the Complete Visit workflow.
+- AI Prescription OCR Digitizer for draft-only prescription extraction from PNG/JPG images.
+- Smart Follow-Up Agent for explicit follow-up reminder drafts with doctor confirmation.
 - Medical record creation from appointment.
 - Optional prescription creation during visit completion.
 - Completed appointment status update.
 - Doctor-scoped appointment and record access.
+- Doctor-only RAG Medical Record Assistant for grounded Q&A over authorized records and prescriptions.
 
 ### Admin Features
 
@@ -106,12 +243,13 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 
 1. Doctor opens the dashboard.
 2. Doctor selects a booked appointment.
-3. Doctor enters diagnosis, treatment, notes, and visit date.
-4. Doctor optionally enters medicines and dosage instructions.
-5. System creates a medical record.
-6. System creates a prescription if prescription fields are provided.
-7. Appointment status changes to `completed`.
-8. Patient can view the record and prescription.
+3. Doctor can optionally type rough consultation notes and generate an AI draft.
+4. AI draft values are only applied after the doctor clicks Apply to Form.
+5. Doctor reviews and edits diagnosis, treatment, notes, visit date, medicines, and dosage instructions.
+6. System creates a medical record only when the doctor clicks Complete Visit.
+7. System creates a prescription if prescription fields are provided.
+8. Appointment status changes to `completed`.
+9. Patient can view the record and prescription.
 
 ## Tech Stack
 
@@ -138,6 +276,17 @@ Each role has protected routes, role-specific dashboards, and database-scoped ac
 - JWT authentication
 - BCrypt password hashing
 - JUnit / Spring Boot Test
+
+### AI Service
+
+- Python 3.11+
+- FastAPI
+- Google Gen AI Python SDK
+- SentenceTransformers local embeddings
+- FAISS local vector search
+- Tesseract OCR through pytesseract
+- faster-whisper local speech transcription
+- Gemini, configured through environment variables
 
 ## Project Structure
 
@@ -167,6 +316,15 @@ Project/
 │   │   ├── pages/
 │   │   └── state/
 │   └── package.json
+├── ai-service/
+│   ├── app/
+│   │   ├── core/
+│   │   ├── prompts/
+│   │   ├── routes/
+│   │   ├── schemas/
+│   │   └── services/
+│   ├── requirements.txt
+│   └── README.md
 ├── docs/
 │   ├── api.md
 │   ├── syllabus-alignment.md
@@ -187,6 +345,9 @@ Project/
 - `AppointmentPage.jsx` - booking, listing, rescheduling, cancellation, deletion.
 - `MedicalRecordsPage.jsx` - medical records and prescriptions.
 - `NotificationsPage.jsx` - user notifications.
+- `AIAssistantPage.jsx` - patient AI symptom triage and doctor routing.
+- `MedicalRecordsPage.jsx` - doctor RAG medical record Q&A appears in the existing records workflow.
+- `DoctorDashboard.jsx` - AI clinical note drafting appears inside the existing Complete Visit workflow.
 
 ## Main Backend Modules
 
@@ -199,6 +360,12 @@ Project/
 - `PrescriptionController.java` - prescription listing and creation.
 - `NotificationController.java` - notification listing and read status.
 - `ReportController.java` - admin summary reports.
+- `AiTriageController.java` - patient AI symptom triage through the FastAPI service.
+- `AiMedicalRecordQaController.java` - doctor-only RAG medical record Q&A through the FastAPI service.
+- `AiClinicalNoteController.java` - doctor-only clinical note draft generation through the FastAPI service.
+- `AiPrescriptionOcrController.java` - doctor-only prescription OCR draft extraction through the FastAPI service.
+- `AiVoiceController.java` - patient-only voice transcription through the FastAPI service.
+- `AiFollowUpController.java` - doctor-only follow-up analysis and confirmed reminder creation.
 
 ## Database Entities
 
@@ -280,6 +447,16 @@ Base path:
 
 - `GET /reports/summary`
 
+### AI
+
+- `POST /ai/triage`
+- `POST /ai/medical-records/{patientId}/ask`
+- `POST /ai/clinical-notes/generate`
+- `POST /ai/prescriptions/extract`
+- `POST /ai/voice/transcribe`
+- `POST /ai/follow-up/analyze`
+- `POST /ai/follow-up/reminders`
+
 See [docs/api.md](docs/api.md) for the API reference.
 
 ## Security
@@ -350,6 +527,53 @@ You can override it with `frontend/.env`:
 VITE_API_URL=http://localhost:5001/api
 ```
 
+### 3. AI Service Setup
+
+```bash
+cd ai-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Set `GEMINI_API_KEY` in `ai-service/.env`, then run:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Spring Boot calls this service through:
+
+```properties
+ai.service.base-url=http://localhost:8000
+```
+
+The first RAG request may download the local embedding model:
+
+```properties
+RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+RAG_TOP_K=4
+```
+
+Install Tesseract for real prescription image OCR:
+
+```bash
+brew install tesseract
+```
+
+Voice transcription uses local `faster-whisper`. The first real voice request can download the configured Whisper model:
+
+```properties
+VOICE_MODEL=base
+VOICE_DEVICE=cpu
+VOICE_COMPUTE_TYPE=int8
+```
+
+The clinical note, prescription OCR, triage, and follow-up analyzers reuse `GEMINI_API_KEY` and `GEMINI_MODEL`. Draft
+features do not add database writes; the doctor or patient must explicitly apply, edit, or confirm results in the normal
+Spring Boot workflow.
+
 ## Creating Users
 
 Use the registration page or `POST /api/auth/register` to create patient, doctor, and admin accounts. Doctors,
@@ -379,6 +603,12 @@ Current tested workflows include:
 - Role-based access prevention.
 - Admin report access.
 - Notification read status update.
+- AI symptom triage service rules.
+- Doctor-only medical record RAG authorization and document building.
+- Doctor-only clinical note draft validation and response sanitization.
+- Doctor-only prescription OCR validation and response sanitization.
+- Patient-only voice transcription validation and language handling.
+- Doctor-only follow-up analysis, date calculation, authorization, and notification confirmation.
 
 Frontend production build:
 
@@ -490,6 +720,49 @@ Spring Data JPA Repositories
 Hibernate
   ↓
 MySQL Database
+```
+
+AI triage uses a separate service while preserving Spring Boot as the security and business-logic layer:
+
+```text
+React -> Spring Boot -> FastAPI -> Gemini
+FastAPI -> Spring Boot -> MySQL doctor lookup -> React
+```
+
+Doctor medical-record Q&A uses local retrieval before Gemini:
+
+```text
+React -> Spring Boot -> JWT + doctor authorization -> MySQL authorized records
+Spring Boot -> FastAPI -> SentenceTransformers -> FAISS -> retrieved chunks -> Gemini
+Gemini -> FastAPI -> Spring Boot -> React
+```
+
+Doctor clinical-note drafting uses Gemini structured output without changing the save workflow:
+
+```text
+Doctor -> React -> Spring Boot JWT + doctor check -> FastAPI -> Gemini structured draft
+Spring Boot -> React preview -> doctor applies/edits -> existing Complete Visit API -> MySQL
+```
+
+Prescription OCR uses local OCR before Gemini and remains draft-only:
+
+```text
+Doctor -> React image upload -> Spring Boot JWT + file validation -> FastAPI -> Tesseract OCR -> Gemini structured draft
+Spring Boot -> React preview -> doctor applies/edits -> existing Complete Visit API -> MySQL
+```
+
+Voice triage transcribes locally before reusing the existing triage flow:
+
+```text
+Patient -> React MediaRecorder -> Spring Boot JWT + audio validation -> FastAPI -> faster-whisper transcript
+React editable symptoms -> Spring Boot triage -> FastAPI -> Gemini -> Spring doctor lookup -> React
+```
+
+Follow-up reminders are human-confirmed notifications:
+
+```text
+Doctor -> React Complete Visit notes -> Spring Boot authorization -> FastAPI -> Gemini follow-up extraction
+Spring Boot date calculation -> React doctor review -> Spring Boot creates Notification -> MySQL
 ```
 
 Architecture qualities:
@@ -624,7 +897,9 @@ Capture these screens:
 - Doctor dashboard.
 - Doctor availability form.
 - Doctor complete visit form.
+- AI clinical note draft preview inside Complete Visit.
 - Medical records page with prescription.
+- Doctor medical record Q&A assistant.
 - Admin dashboard.
 - Backend test output.
 

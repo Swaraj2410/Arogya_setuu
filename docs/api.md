@@ -91,6 +91,244 @@ Optional query:
 ?specialization=1
 ```
 
+## AI Triage
+
+### `POST /ai/triage`
+
+Patient-only endpoint. The frontend sends symptoms to Spring Boot; Spring Boot sends the symptoms plus actual
+database specialization names to the FastAPI AI service.
+
+Request:
+
+```json
+{
+  "symptoms": "I have a skin rash and severe itching",
+  "language": "en"
+}
+```
+
+Response:
+
+```json
+{
+  "assessment": {
+    "urgency": "MEDIUM",
+    "recommendedSpecialization": "Dermatology",
+    "reason": "Persistent rash and itching should be evaluated by a skin specialist.",
+    "recommendation": "Book a consultation with a dermatologist.",
+    "warningSigns": []
+  },
+  "doctors": []
+}
+```
+
+Spring Boot rejects invented AI specialization names by falling back to an existing specialization before doctor lookup.
+If FastAPI or Gemini is unavailable, the endpoint returns a `503` JSON error with a user-friendly message.
+`language` is optional and supports `en`, `hi`, and `mr`. Human-facing response text follows that language when possible;
+`recommendedSpecialization` remains an English database specialization name.
+
+## AI Clinical Note Draft
+
+### `POST /ai/clinical-notes/generate`
+
+Doctor-only endpoint. Spring Boot verifies the authenticated user is a doctor and forwards only rough consultation notes
+to FastAPI. This endpoint returns a draft only; it does not create medical records, prescriptions, or complete visits.
+
+Request:
+
+```json
+{
+  "roughNotes": "patient fever dry cough and body pain for 3 days. viral fever. advised rest and hydration. paracetamol 500 mg twice daily after food for 5 days. follow up after 5 days"
+}
+```
+
+Response:
+
+```json
+{
+  "diagnosis": "Viral fever",
+  "treatment": "Rest and hydration",
+  "medicines": "Paracetamol 500 mg",
+  "dosageInstructions": "Twice daily after food for 5 days",
+  "notes": "Patient reported fever, dry cough and body pain for 3 days. Follow-up advised after 5 days."
+}
+```
+
+Rules:
+
+- React calls Spring Boot, not FastAPI or Gemini.
+- Missing information is returned as an empty string.
+- The AI is instructed not to infer diagnosis, dosage, medication, duration, treatment, symptoms, or advice.
+- Doctors must explicitly apply the draft to the Complete Visit form and can edit it before saving.
+- If FastAPI, Gemini, or structured output validation fails, Spring Boot returns a `503` JSON error.
+
+## AI Prescription OCR Draft
+
+### `POST /ai/prescriptions/extract`
+
+Doctor-only multipart endpoint. Spring Boot validates the uploaded PNG/JPG image, forwards it to FastAPI, and returns a
+draft only. It does not create a prescription or medical record.
+
+Request:
+
+```http
+Content-Type: multipart/form-data
+
+file=<prescription.png>
+```
+
+Response:
+
+```json
+{
+  "rawText": "Paracetamol 500 mg twice daily after food for 5 days",
+  "medicines": [
+    {
+      "name": "Paracetamol",
+      "dosage": "500 mg",
+      "frequency": "twice daily",
+      "duration": "5 days",
+      "instructions": "after food"
+    }
+  ],
+  "additionalInstructions": "",
+  "verificationRequired": true,
+  "qualityWarning": "Doctor must verify all OCR-extracted fields before saving."
+}
+```
+
+Rules:
+
+- Accepted image types are PNG and JPG/JPEG.
+- OCR runs locally through Tesseract in the FastAPI service.
+- Gemini structures only the OCR-readable text and is instructed not to invent missing medicines or dosage details.
+- The doctor must explicitly apply and edit the draft in the Complete Visit prescription form before saving.
+
+## AI Voice Transcription
+
+### `POST /ai/voice/transcribe`
+
+Patient-only multipart endpoint. The browser records audio, Spring Boot validates the upload, and FastAPI transcribes it
+locally with `faster-whisper`.
+
+Request:
+
+```http
+Content-Type: multipart/form-data
+
+language=en
+file=<symptoms.webm>
+```
+
+Response:
+
+```json
+{
+  "text": "I have fever and body pain for three days",
+  "language": "en"
+}
+```
+
+Rules:
+
+- Supported languages are `en`, `hi`, and `mr`.
+- The transcript is placed into the symptoms field for patient review before triage.
+- Optional browser speech synthesis can read the triage response aloud; it is not a backend dependency.
+
+## AI Follow-Up Reminders
+
+### `POST /ai/follow-up/analyze`
+
+Doctor-only endpoint. Spring Boot verifies the doctor-patient relationship, sends consultation notes to FastAPI, and
+calculates the suggested date itself from explicit AI-extracted timing.
+
+Request:
+
+```json
+{
+  "patientId": 1,
+  "visitDate": "2026-09-02",
+  "consultationNotes": "Diagnosis: Viral fever. Treatment: Rest and fluids. Follow up after 5 days."
+}
+```
+
+Response:
+
+```json
+{
+  "followUpRequired": true,
+  "afterDays": 5,
+  "followUpDateText": "after 5 days",
+  "suggestedDate": "2026-09-07",
+  "reason": "Follow-up was explicitly advised in the notes.",
+  "reminderMessage": "Please attend your follow-up visit on 2026-09-07.",
+  "requiresReview": false,
+  "reviewReason": ""
+}
+```
+
+### `POST /ai/follow-up/reminders`
+
+Doctor-only endpoint that creates the actual patient notification after doctor confirmation.
+
+Request:
+
+```json
+{
+  "patientId": 1,
+  "followUpDate": "2026-09-07",
+  "reason": "Follow-up was explicitly advised in the notes.",
+  "reminderMessage": "Please attend your follow-up visit on 2026-09-07."
+}
+```
+
+Rules:
+
+- Gemini never creates notifications directly.
+- Spring Boot rejects unauthorized doctor-patient pairs.
+- Spring Boot rejects past reminder dates.
+- The notification uses the existing notification table and patient notification screen.
+
+## AI Medical Record Q&A
+
+### `POST /ai/medical-records/{patientId}/ask`
+
+Doctor-only endpoint. Spring Boot verifies the authenticated doctor and checks an existing relationship with the patient
+before sending any medical record text to FastAPI.
+
+Request:
+
+```json
+{
+  "question": "What medications was this patient prescribed recently?"
+}
+```
+
+Response:
+
+```json
+{
+  "answer": "The patient was prescribed Paracetamol 500mg twice daily for 5 days.",
+  "sources": [
+    {
+      "recordType": "PRESCRIPTION",
+      "recordId": 14,
+      "date": "2026-08-12"
+    }
+  ],
+  "retrievedChunks": 3
+}
+```
+
+Rules:
+
+- FastAPI does not query MySQL.
+- Spring Boot sends only authorized medical record and prescription chunks.
+- Sources refer to existing medical record or prescription ids.
+- If the answer is missing from the records, the answer states that the information is not available in the patient's
+  medical records.
+- If FastAPI, embeddings, FAISS, or Gemini fails, Spring Boot returns a `503` JSON error.
+
 ## Locations
 
 ### `GET /locations/states`

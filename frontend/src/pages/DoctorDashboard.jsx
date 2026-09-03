@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarCheck, ClipboardList, FileText, MapPinned, Pill, Plus, Users } from 'lucide-react';
+import AiClinicalNoteAssistant from '../components/AiClinicalNoteAssistant';
+import AiFollowUpAssistant from '../components/AiFollowUpAssistant';
+import AiPrescriptionOcrAssistant from '../components/AiPrescriptionOcrAssistant';
 import AppointmentCard from '../components/AppointmentCard';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -86,6 +89,31 @@ export default function DoctorDashboard() {
       medicines: '',
       dosageInstructions: ''
     });
+  };
+
+  const hasVisitFormContent = ['diagnosis', 'treatment', 'notes', 'medicines', 'dosageInstructions']
+    .some((field) => Boolean(visitForm[field]?.trim()));
+
+  const applyClinicalNoteDraft = (draft) => {
+    setVisitForm((current) => ({
+      ...current,
+      diagnosis: draft.diagnosis || '',
+      treatment: draft.treatment || '',
+      notes: draft.notes || '',
+      medicines: draft.medicines || '',
+      dosageInstructions: draft.dosageInstructions || ''
+    }));
+  };
+
+  const hasPrescriptionFormContent = ['medicines', 'dosageInstructions']
+    .some((field) => Boolean(visitForm[field]?.trim()));
+
+  const applyPrescriptionOcrDraft = (draft) => {
+    setVisitForm((current) => ({
+      ...current,
+      medicines: draft.medicines || '',
+      dosageInstructions: draft.dosageInstructions || ''
+    }));
   };
 
   const handleVisitSubmit = async (event) => {
@@ -229,68 +257,88 @@ export default function DoctorDashboard() {
 
       {activeVisit && (
         <SectionCard title="Complete Visit">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleVisitSubmit}>
-            <label className="block text-sm font-medium text-slate-700">
-              Visit date
-              <input
-                type="date"
-                value={visitForm.visitDate}
-                onChange={(event) => setVisitForm((current) => ({ ...current, visitDate: event.target.value }))}
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                required
+          <div className="space-y-5">
+            <AiClinicalNoteAssistant
+              key={activeVisit.id}
+              onApply={applyClinicalNoteDraft}
+              hasExistingValues={hasVisitFormContent}
+              disabled={savingVisit}
+            />
+            <AiPrescriptionOcrAssistant
+              key={`ocr-${activeVisit.id}`}
+              onApply={applyPrescriptionOcrDraft}
+              hasExistingValues={hasPrescriptionFormContent}
+              disabled={savingVisit}
+            />
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleVisitSubmit}>
+              <label className="block text-sm font-medium text-slate-700">
+                Visit date
+                <input
+                  type="date"
+                  value={visitForm.visitDate}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, visitDate: event.target.value }))}
+                  className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Diagnosis
+                <input
+                  value={visitForm.diagnosis}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, diagnosis: event.target.value }))}
+                  className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Treatment
+                <input
+                  value={visitForm.treatment}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, treatment: event.target.value }))}
+                  className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Medicines
+                <input
+                  value={visitForm.medicines}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, medicines: event.target.value }))}
+                  className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Dosage instructions
+                <input
+                  value={visitForm.dosageInstructions}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, dosageInstructions: event.target.value }))}
+                  className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700 md:col-span-2">
+                Notes
+                <textarea
+                  value={visitForm.notes}
+                  onChange={(event) => setVisitForm((current) => ({ ...current, notes: event.target.value }))}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                />
+              </label>
+              <AiFollowUpAssistant
+                patientId={activeVisit.patientId}
+                visitDate={visitForm.visitDate}
+                visitForm={visitForm}
+                disabled={savingVisit}
               />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Diagnosis
-              <input
-                value={visitForm.diagnosis}
-                onChange={(event) => setVisitForm((current) => ({ ...current, diagnosis: event.target.value }))}
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                required
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Treatment
-              <input
-                value={visitForm.treatment}
-                onChange={(event) => setVisitForm((current) => ({ ...current, treatment: event.target.value }))}
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Medicines
-              <input
-                value={visitForm.medicines}
-                onChange={(event) => setVisitForm((current) => ({ ...current, medicines: event.target.value }))}
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Dosage instructions
-              <input
-                value={visitForm.dosageInstructions}
-                onChange={(event) => setVisitForm((current) => ({ ...current, dosageInstructions: event.target.value }))}
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-              Notes
-              <textarea
-                value={visitForm.notes}
-                onChange={(event) => setVisitForm((current) => ({ ...current, notes: event.target.value }))}
-                rows={3}
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end md:col-span-2">
-              <Button variant="secondary" onClick={() => setActiveVisit(null)} disabled={savingVisit}>
-                Close
-              </Button>
-              <Button type="submit" disabled={savingVisit}>
-                {savingVisit ? 'Saving...' : 'Complete Visit'}
-              </Button>
-            </div>
-          </form>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end md:col-span-2">
+                <Button variant="secondary" onClick={() => setActiveVisit(null)} disabled={savingVisit}>
+                  Close
+                </Button>
+                <Button type="submit" disabled={savingVisit}>
+                  {savingVisit ? 'Saving...' : 'Complete Visit'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </SectionCard>
       )}
     </DashboardLayout>

@@ -13,6 +13,7 @@ const iconForType = {
   appointment: CalendarDays,
   record: FileText,
   prescription: Pill,
+  'follow-up': CalendarDays,
   report: FileText
 };
 

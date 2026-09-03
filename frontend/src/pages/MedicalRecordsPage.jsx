@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Search } from 'lucide-react';
+import AiMedicalRecordAssistant from '../components/AiMedicalRecordAssistant';
 import EmptyState from '../components/EmptyState';
 import PageHeader from '../components/PageHeader';
 import RecordCard from '../components/RecordCard';
@@ -79,6 +80,8 @@ export default function MedicalRecordsPage() {
       </SectionCard>
 
       {error && <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      {user?.role === 'doctor' && <AiMedicalRecordAssistant records={records} loading={loading} />}
 
       {loading ? (
         <p className="text-sm text-slate-600">Loading medical records...</p>

@@ -75,6 +75,9 @@ JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRATION_MS=604800000
 SERVER_PORT=5001
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
+AI_SERVICE_BASE_URL=http://localhost:8000
+AI_SERVICE_CONNECT_TIMEOUT=2s
+AI_SERVICE_READ_TIMEOUT=12s
 ```
 
 See `.env.example` for the same list.
@@ -148,6 +151,13 @@ Tests use H2 in MySQL compatibility mode through `application-test.properties`.
 - `GET /api/notifications`
 - `PATCH /api/notifications/{id}/read`
 - `GET /api/reports/summary`
+- `POST /api/ai/triage`
+- `POST /api/ai/medical-records/{patientId}/ask`
+- `POST /api/ai/clinical-notes/generate`
+- `POST /api/ai/prescriptions/extract`
+- `POST /api/ai/voice/transcribe`
+- `POST /api/ai/follow-up/analyze`
+- `POST /api/ai/follow-up/reminders`
 - `GET /health`
 
 ## Authentication
@@ -178,9 +188,54 @@ The JWT stores the authenticated user id and role. Services use the authenticate
 
 ## Roles
 
-- `patient`: browse doctors, view matching village schedules, book/cancel own appointments, view own records/prescriptions/notifications.
-- `doctor`: manage own village availability, view own appointments, create records, create prescriptions, complete appointments.
+- `patient`: browse doctors, view matching village schedules, book/cancel own appointments, view own records/prescriptions/notifications, use text or voice symptom triage.
+- `doctor`: manage own village availability, view own appointments, generate clinical note drafts, digitize prescription images as drafts, analyze follow-up instructions, create records, create prescriptions, complete appointments.
 - `admin`: query all records/appointments and access report summary APIs.
+
+## AI Clinical Note Drafting
+
+`POST /api/ai/clinical-notes/generate` is doctor-only and forwards only `roughNotes` to FastAPI. It returns a structured
+draft for the existing Complete Visit form:
+
+```json
+{
+  "diagnosis": "Viral fever",
+  "treatment": "Rest and hydration",
+  "medicines": "Paracetamol 500 mg",
+  "dosageInstructions": "Twice daily after food for 5 days",
+  "notes": "Patient reported fever, dry cough and body pain for 3 days. Follow-up advised after 5 days."
+}
+```
+
+This endpoint does not create medical records, prescriptions, appointments, or any other database rows. The doctor must
+apply the draft, review/edit the existing form, and click the normal Complete Visit button to save.
+
+## AI Prescription OCR Drafting
+
+`POST /api/ai/prescriptions/extract` is doctor-only and accepts a PNG or JPG multipart file. Spring Boot validates the
+file before forwarding it to FastAPI. FastAPI performs local Tesseract OCR, then Gemini structures the readable text into
+draft prescription fields.
+
+The endpoint returns `rawText`, a list of medicine draft rows, `additionalInstructions`, `verificationRequired`, and
+`qualityWarning`. It does not create a prescription. The doctor must review the draft, apply it to the existing Complete
+Visit prescription fields, edit it if needed, and then use the normal Complete Visit flow to save.
+
+## AI Voice Symptom Triage
+
+`POST /api/ai/voice/transcribe` is patient-only and accepts a short audio upload from the browser recorder. Spring Boot
+forwards the audio to FastAPI, where `faster-whisper` transcribes English, Hindi, or Marathi speech locally. The frontend
+places the transcript into the existing symptoms box so the patient can edit it before calling `/api/ai/triage`.
+
+The triage endpoint also accepts optional `language` (`en`, `hi`, or `mr`). The AI response text follows that language,
+but `recommendedSpecialization` remains an English specialization name so doctor lookup remains database-compatible.
+
+## AI Follow-Up Reminder Drafting
+
+`POST /api/ai/follow-up/analyze` is doctor-only. Spring Boot checks the doctor-patient relationship, sends consultation
+notes to FastAPI, and accepts only explicit follow-up instructions. Spring Boot calculates or validates the final date.
+
+`POST /api/ai/follow-up/reminders` creates a patient notification only after the doctor confirms the reviewed date and
+message. Gemini never writes to the database and never receives unrestricted database access.
 
 ## Village-Wise Scheduling
 
@@ -253,3 +308,32 @@ React
 -> MySQL
 -> `AppointmentResponse`
 -> React
+
+## AI Symptom Triage Flow
+
+React sends patient-entered symptoms only to Spring Boot:
+
+```text
+POST /api/ai/triage
+```
+
+Spring Boot verifies the JWT, allows patient users only, loads the actual specialization names from MySQL, calls the
+FastAPI service, validates that the returned specialization exists, and then reuses the existing doctor listing logic.
+
+FastAPI expects `GEMINI_API_KEY` and `GEMINI_MODEL` in its own environment. The frontend never receives the Gemini API
+key and never calls FastAPI directly.
+
+## RAG Medical Record Q&A Flow
+
+Doctors can ask grounded questions about patient records through:
+
+```text
+POST /api/ai/medical-records/{patientId}/ask
+```
+
+Spring Boot verifies the JWT, requires the authenticated user to be a doctor, verifies an existing doctor-patient
+relationship through appointments or medical records, fetches only that doctor's records for the requested patient, and
+builds record-aware RAG documents from existing `MedicalRecord` and `Prescription` fields.
+
+The FastAPI service receives only those authorized documents, builds an ephemeral FAISS index using local
+SentenceTransformers embeddings, retrieves relevant chunks, and asks Gemini for a grounded structured answer.
