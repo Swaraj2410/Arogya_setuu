@@ -1,8 +1,8 @@
+import asyncio
 import json
 import logging
 from functools import lru_cache
 
-from fastapi import HTTPException, status
 from google import genai
 from google.genai import errors
 from pydantic import ValidationError
@@ -25,18 +25,23 @@ class ClinicalNoteService:
         self._client: genai.Client | None = None
 
     async def generate(self, request: ClinicalNoteGenerateRequest) -> ClinicalNoteDraftResponse:
-        self.ensure_configured()
+        if not self.settings.gemini_api_key:
+            logger.warning("Gemini API key is not configured; using conservative clinical note fallback")
+            return self._fallback_draft(request.roughNotes)
 
         try:
-            interaction = await self.client.aio.interactions.create(
-                model=self.settings.gemini_model,
-                input=self._build_prompt(request.roughNotes),
-                system_instruction=CLINICAL_NOTE_SYSTEM_PROMPT,
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": CLINICAL_NOTE_RESPONSE_SCHEMA,
-                },
+            interaction = await asyncio.wait_for(
+                self.client.aio.interactions.create(
+                    model=self.settings.gemini_model,
+                    input=self._build_prompt(request.roughNotes),
+                    system_instruction=CLINICAL_NOTE_SYSTEM_PROMPT,
+                    response_format={
+                        "type": "text",
+                        "mime_type": "application/json",
+                        "schema": CLINICAL_NOTE_RESPONSE_SCHEMA,
+                    },
+                ),
+                timeout=self.settings.gemini_timeout_seconds,
             )
             output_text = getattr(interaction, "output_text", None)
             if not output_text:
@@ -44,29 +49,20 @@ class ClinicalNoteService:
             return ClinicalNoteDraftResponse.model_validate_json(output_text)
         except (ValidationError, ValueError) as exception:
             logger.warning("Gemini clinical note returned invalid structured output: %s", exception)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI clinical note assistant returned an invalid draft.",
-            ) from exception
+            return self._fallback_draft(request.roughNotes)
+        except asyncio.TimeoutError:
+            logger.warning("Gemini clinical note timed out after %s seconds", self.settings.gemini_timeout_seconds)
+            return self._fallback_draft(request.roughNotes)
         except errors.APIError as exception:
-            logger.exception("Gemini clinical note API error %s: %s", exception.code, exception.message)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Gemini API error {exception.code}: {exception.message}",
-            ) from exception
+            logger.warning("Gemini clinical note API error %s: %s", exception.code, exception.message)
+            return self._fallback_draft(request.roughNotes)
         except Exception as exception:
-            logger.exception("Gemini clinical note request failed")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI clinical note assistant is temporarily unavailable.",
-            ) from exception
+            logger.warning("Gemini clinical note request failed; using conservative fallback: %s", exception)
+            return self._fallback_draft(request.roughNotes)
 
     def ensure_configured(self) -> None:
         if not self.settings.gemini_api_key:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Gemini API key is not configured.",
-            )
+            logger.warning("Gemini API key is not configured; clinical notes will use conservative fallback")
 
     @staticmethod
     def _build_prompt(rough_notes: str) -> str:
@@ -75,6 +71,16 @@ class ClinicalNoteService:
             "Create a draft for the existing Complete Visit form from these rough notes. "
             "Use empty strings for any missing field and do not add facts that are not present.\n\n"
             f"{json.dumps(payload, ensure_ascii=False)}"
+        )
+
+    @staticmethod
+    def _fallback_draft(rough_notes: str) -> ClinicalNoteDraftResponse:
+        return ClinicalNoteDraftResponse(
+            diagnosis="",
+            treatment="",
+            medicines="",
+            dosageInstructions="",
+            notes=rough_notes[:1200],
         )
 
     @property

@@ -25,7 +25,13 @@ public class ClinicalNoteAiService {
             throw new BadRequestException("Rough notes are required");
         }
         String roughNotes = normalizeRoughNotes(request.getRoughNotes());
-        return sanitize(clinicalNoteClient.generate(roughNotes));
+        ClinicalNoteDraftResponse draft;
+        try {
+            draft = clinicalNoteClient.generate(roughNotes);
+        } catch (AiServiceUnavailableException exception) {
+            return conservativeFallback(roughNotes);
+        }
+        return sanitize(draft);
     }
 
     private void ensureDoctor(UserPrincipal currentUser) {
@@ -57,6 +63,16 @@ public class ClinicalNoteAiService {
         sanitized.setDosageInstructions(cleanField(response.getDosageInstructions(), 800));
         sanitized.setNotes(cleanField(response.getNotes(), 1200));
         return sanitized;
+    }
+
+    private ClinicalNoteDraftResponse conservativeFallback(String roughNotes) {
+        ClinicalNoteDraftResponse response = new ClinicalNoteDraftResponse();
+        response.setDiagnosis("");
+        response.setTreatment("");
+        response.setMedicines("");
+        response.setDosageInstructions("");
+        response.setNotes(roughNotes.length() > 1200 ? roughNotes.substring(0, 1200) : roughNotes);
+        return response;
     }
 
     private String cleanField(String value, int maxLength) {

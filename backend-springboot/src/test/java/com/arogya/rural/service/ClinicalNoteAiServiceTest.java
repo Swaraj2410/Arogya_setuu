@@ -78,6 +78,20 @@ class ClinicalNoteAiServiceTest {
                 .hasMessage("AI clinical note assistant returned an invalid draft.");
     }
 
+    @Test
+    void generateUsesConservativeFallbackWhenFastApiFails() {
+        when(clinicalNoteClient.generate(eq("patient fever and cough")))
+                .thenThrow(new AiServiceUnavailableException("AI clinical note assistant is temporarily unavailable."));
+
+        ClinicalNoteDraftResponse response = service.generate(doctorPrincipal(), request("patient fever and cough"));
+
+        assertThat(response.getDiagnosis()).isEmpty();
+        assertThat(response.getTreatment()).isEmpty();
+        assertThat(response.getMedicines()).isEmpty();
+        assertThat(response.getDosageInstructions()).isEmpty();
+        assertThat(response.getNotes()).isEqualTo("patient fever and cough");
+    }
+
     private ClinicalNoteDraftRequest request(String roughNotes) {
         ClinicalNoteDraftRequest request = new ClinicalNoteDraftRequest();
         request.setRoughNotes(roughNotes);
