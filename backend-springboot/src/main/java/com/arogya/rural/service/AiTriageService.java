@@ -6,6 +6,7 @@ import com.arogya.rural.dto.response.AiTriageResponse;
 import com.arogya.rural.dto.response.DoctorResponse;
 import com.arogya.rural.entity.Specialization;
 import com.arogya.rural.enums.Role;
+import com.arogya.rural.exception.AiServiceUnavailableException;
 import com.arogya.rural.exception.BadRequestException;
 import com.arogya.rural.repository.SpecializationRepository;
 import com.arogya.rural.security.UserPrincipal;
@@ -45,7 +46,16 @@ public class AiTriageService {
             throw new BadRequestException("No doctor specializations are available");
         }
 
-        AiTriageAssessmentResponse assessment = fastApiTriageClient.requestAssessment(symptoms, allowedNames, language);
+        AiTriageAssessmentResponse assessment;
+        try {
+            assessment = fastApiTriageClient.requestAssessment(symptoms, allowedNames, language);
+        } catch (AiServiceUnavailableException exception) {
+            Specialization fallback = fallbackSpecialization(specializations);
+            assessment = safeFallbackAssessment(fallback.getName(), language);
+            List<DoctorResponse> doctors = doctorService.listDoctors(fallback.getId());
+            return new AiTriageResponse(assessment, doctors);
+        }
+
         Specialization selectedSpecialization = findRecommendedSpecialization(assessment, specializations);
         if (selectedSpecialization == null) {
             selectedSpecialization = fallbackSpecialization(specializations);

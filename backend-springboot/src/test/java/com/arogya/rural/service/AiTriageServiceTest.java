@@ -100,16 +100,18 @@ class AiTriageServiceTest {
     }
 
     @Test
-    void triagePropagatesFriendlyFastApiFailure() {
+    void triageFallsBackWhenFastApiFails() {
         when(specializationRepository.findAllOrdered()).thenReturn(List.of(specialization(1L, "General Medicine")));
         when(fastApiTriageClient.requestAssessment(eq("fever and cough"), anyList(), eq("en")))
                 .thenThrow(new AiServiceUnavailableException(
                         "AI symptom assistant is temporarily unavailable. Please try again later or book a doctor directly."
                 ));
 
-        assertThatThrownBy(() -> aiTriageService.triage(patientPrincipal(), request("fever and cough")))
-                .isInstanceOf(AiServiceUnavailableException.class)
-                .hasMessage("AI symptom assistant is temporarily unavailable. Please try again later or book a doctor directly.");
+        AiTriageResponse response = aiTriageService.triage(patientPrincipal(), request("fever and cough"));
+
+        assertThat(response.getAssessment().getRecommendedSpecialization()).isEqualTo("General Medicine");
+        assertThat(response.getAssessment().getReason()).contains("qualified clinician");
+        verify(doctorService).listDoctors(1L);
     }
 
     private AiTriageRequest request(String symptoms) {

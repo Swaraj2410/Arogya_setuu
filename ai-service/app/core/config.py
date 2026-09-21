@@ -12,6 +12,7 @@ class Settings(BaseSettings):
         alias="RAG_EMBEDDING_MODEL",
     )
     rag_top_k: int = Field(default=4, alias="RAG_TOP_K", ge=1, le=12)
+    gemini_timeout_seconds: float = Field(default=8.0, alias="GEMINI_TIMEOUT_SECONDS", gt=0, le=60)
     voice_model: str = Field(default="base", alias="VOICE_MODEL")
     voice_device: str = Field(default="cpu", alias="VOICE_DEVICE")
     voice_compute_type: str = Field(default="int8", alias="VOICE_COMPUTE_TYPE")

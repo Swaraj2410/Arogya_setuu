@@ -1,8 +1,8 @@
+import asyncio
 import json
 import logging
 from functools import lru_cache
 
-from fastapi import HTTPException, status
 from google import genai
 from google.genai import errors
 from pydantic import ValidationError
@@ -22,30 +22,28 @@ class GeminiTriageService:
 
     async def triage(self, request: TriageRequest) -> TriageResponse:
         if not self.settings.gemini_api_key:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Gemini API key is not configured.",
-            )
+            logger.warning("Gemini API key is not configured; using safe triage fallback")
+            return self._safe_fallback(request.allowedSpecializations, request.language)
 
         try:
-            response = await self._gemini_response(request)
+            response = await asyncio.wait_for(
+                self._gemini_response(request),
+                timeout=self.settings.gemini_timeout_seconds,
+            )
         except (ValidationError, ValueError) as exception:
             logger.warning("Gemini triage returned invalid structured output: %s", exception)
-            return self._safe_fallback(request.allowedSpecializations)
+            return self._safe_fallback(request.allowedSpecializations, request.language)
+        except asyncio.TimeoutError:
+            logger.warning("Gemini triage timed out after %s seconds", self.settings.gemini_timeout_seconds)
+            return self._safe_fallback(request.allowedSpecializations, request.language)
         except errors.APIError as exception:
-            logger.exception("Gemini API error %s: %s", exception.code, exception.message)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Gemini API error {exception.code}: {exception.message}",
-            ) from exception
+            logger.warning("Gemini triage API error %s: %s", exception.code, exception.message)
+            return self._safe_fallback(request.allowedSpecializations, request.language)
         except Exception as exception:
-            logger.exception("Gemini triage request failed")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI triage is temporarily unavailable.",
-            ) from exception
+            logger.warning("Gemini triage request failed; using safe fallback: %s", exception)
+            return self._safe_fallback(request.allowedSpecializations, request.language)
 
-        return self._validated_or_fallback(response, request.allowedSpecializations)
+        return self._validated_or_fallback(response, request.allowedSpecializations, request.language)
 
     async def _gemini_response(self, request: TriageRequest) -> TriageResponse:
         interaction = await self.client.aio.interactions.create(
@@ -68,6 +66,7 @@ class GeminiTriageService:
         self,
         response: TriageResponse,
         allowed_specializations: list[str],
+        language: str,
     ) -> TriageResponse:
         allowed_by_key = {item.casefold(): item for item in allowed_specializations}
         recommended = allowed_by_key.get(response.recommendedSpecialization.casefold())
@@ -75,21 +74,16 @@ class GeminiTriageService:
             response.recommendedSpecialization = recommended
             return response
 
-        return self._safe_fallback(allowed_specializations)
+        return self._safe_fallback(allowed_specializations, language)
 
-    def _safe_fallback(self, allowed_specializations: list[str]) -> TriageResponse:
+    def _safe_fallback(self, allowed_specializations: list[str], language: str) -> TriageResponse:
         specialization = self._fallback_specialization(allowed_specializations)
         return TriageResponse(
             urgency=Urgency.MEDIUM,
             recommendedSpecialization=specialization,
-            reason="The symptoms need a clinician review and could not be routed confidently.",
-            recommendation=f"Book a consultation with {specialization} or seek urgent care if symptoms worsen.",
-            warningSigns=[
-                "Severe chest pain",
-                "Difficulty breathing",
-                "Loss of consciousness",
-                "Heavy bleeding",
-            ],
+            reason=self._fallback_reason(language),
+            recommendation=self._fallback_recommendation(specialization, language),
+            warningSigns=self._fallback_warning_signs(language),
         )
 
     @staticmethod
@@ -98,6 +92,28 @@ class GeminiTriageService:
             if item.casefold() == "general medicine":
                 return item
         return allowed_specializations[0]
+
+    @staticmethod
+    def _fallback_reason(language: str) -> str:
+        return {
+            "hi": "इन लक्षणों की किसी योग्य डॉक्टर से जांच होनी चाहिए।",
+            "mr": "या लक्षणांची पात्र डॉक्टरांकडून तपासणी होणे आवश्यक आहे.",
+        }.get(language, "The symptoms should be reviewed by a qualified clinician.")
+
+    @staticmethod
+    def _fallback_recommendation(specialization: str, language: str) -> str:
+        return {
+            "hi": f"{specialization} के डॉक्टर से परामर्श बुक करें या लक्षण बिगड़ने पर तुरंत देखभाल लें।",
+            "mr": f"{specialization} डॉक्टरांचा सल्ला घ्या किंवा लक्षणे वाढल्यास तातडीची मदत घ्या.",
+        }.get(language, f"Book a consultation with {specialization} or seek urgent care if symptoms worsen.")
+
+    @staticmethod
+    def _fallback_warning_signs(language: str) -> list[str]:
+        if language == "hi":
+            return ["सीने में तेज दर्द", "सांस लेने में कठिनाई", "बेहोशी", "भारी रक्तस्राव"]
+        if language == "mr":
+            return ["छातीत तीव्र वेदना", "श्वास घेण्यास त्रास", "बेशुद्ध होणे", "जास्त रक्तस्राव"]
+        return ["Severe chest pain", "Difficulty breathing", "Loss of consciousness", "Heavy bleeding"]
 
     @staticmethod
     def _build_user_prompt(request: TriageRequest) -> str:
