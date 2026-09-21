@@ -27,8 +27,6 @@ class RagService:
         self.settings = get_settings()
 
     async def query(self, request: RagQueryRequest) -> RagQueryResponse:
-        self.gemini_service.ensure_configured()
-
         chunks = self._build_chunks(request.documents)
         if not chunks:
             raise HTTPException(
