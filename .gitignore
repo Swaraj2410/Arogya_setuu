@@ -2,6 +2,8 @@ node_modules/
 dist/
 coverage/
 .DS_Store
+apache-maven-*/
+apache-maven-*-bin.zip
 
 .env
 *.log

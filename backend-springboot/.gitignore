@@ -4,7 +4,11 @@ target/
 .env.local
 src/main/resources/application-local.properties
 data/
+!data/
+data/*
+!data/render-demo-locations.csv
 *.csv
+!data/render-demo-locations.csv
 *.xlsx
 *.parquet
 *.7z

@@ -1,0 +1,6 @@
+target
+.env
+src/main/resources/application-local.properties
+data/*
+!data/render-demo-locations.csv
+*.log

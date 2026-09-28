@@ -197,7 +197,7 @@ export default function VillageVisitsPage({ mode }) {
                 />
               </label>
               <div className="sm:col-span-2">
-                <Button type="submit" icon={Plus} disabled={saving}>
+                <Button type="submit" icon={Plus} disabled={saving || !hasCompleteLocation(form)}>
                   {saving ? 'Publishing...' : 'Publish Schedule'}
                 </Button>
               </div>

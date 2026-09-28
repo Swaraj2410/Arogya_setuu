@@ -1,20 +1,28 @@
 package com.arogya.rural.service;
 
 import com.arogya.rural.entity.Location;
+import com.arogya.rural.entity.LocationImport;
+import com.arogya.rural.repository.LocationImportRepository;
 import com.arogya.rural.repository.LocationRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -34,34 +42,30 @@ public class LocationCsvImporter implements CommandLineRunner {
                 village_code,
                 village_name
             ) values (?, ?, ?, ?, ?, ?, ?, ?)
-            on duplicate key update
-                state_code = values(state_code),
-                state_name = values(state_name),
-                district_code = values(district_code),
-                district_name = values(district_name),
-                sub_district_code = values(sub_district_code),
-                sub_district_name = values(sub_district_name),
-                village_name = values(village_name)
             """;
 
     private final LocationRepository locationRepository;
+    private final LocationImportRepository importRepository;
     private final JdbcTemplate jdbcTemplate;
     private final String importCsvPath;
     private final boolean forceImport;
 
     public LocationCsvImporter(
             LocationRepository locationRepository,
+            LocationImportRepository importRepository,
             JdbcTemplate jdbcTemplate,
             @Value("${app.locations.import-csv:}") String importCsvPath,
             @Value("${app.locations.force-import:false}") boolean forceImport
     ) {
         this.locationRepository = locationRepository;
+        this.importRepository = importRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.importCsvPath = importCsvPath;
         this.forceImport = forceImport;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void run(String... args) throws IOException {
         if (importCsvPath == null || importCsvPath.isBlank()) {
             return;
@@ -73,18 +77,34 @@ public class LocationCsvImporter implements CommandLineRunner {
             return;
         }
 
+        String checksum = checksum(csvPath);
         long existingRows = locationRepository.count();
-        if (existingRows > 0 && !forceImport) {
-            log.info("Skipping location import because {} rows already exist", existingRows);
+        LocationImport previous = importRepository.findById("lgd").orElse(null);
+        if (!forceImport && previous != null && previous.getChecksum().equals(checksum)
+                && previous.getRowCount() == existingRows && existingRows > 0) {
+            log.info("LGD dataset is unchanged; using {} imported locations", existingRows);
             return;
         }
 
-        if (forceImport && existingRows > 0) {
-            log.info("Deleting {} existing location rows before forced import", existingRows);
-            locationRepository.deleteAllInBatch();
-        }
-
+        // Replace only reference locations, atomically. Patient and visit data are untouched.
+        locationRepository.deleteAllInBatch();
         importCsv(csvPath);
+        if (!checksum.equals(checksum(csvPath))) {
+            throw new IOException("Location CSV changed during import; retry with a stable file");
+        }
+        importRepository.save(new LocationImport(checksum, locationRepository.count()));
+    }
+
+    private String checksum(Path path) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (DigestInputStream input = new DigestInputStream(Files.newInputStream(path), digest)) {
+                input.transferTo(OutputStream.nullOutputStream());
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private void importCsv(Path csvPath) throws IOException {
@@ -93,20 +113,22 @@ public class LocationCsvImporter implements CommandLineRunner {
         try (BufferedReader reader = Files.newBufferedReader(csvPath, StandardCharsets.UTF_8)) {
             String headerLine = reader.readLine();
             if (headerLine == null) {
-                log.warn("Location CSV is empty: {}", csvPath);
-                return;
+                throw new IOException("Location CSV is empty: " + csvPath);
             }
 
             Map<String, Integer> headers = buildHeaderIndex(parseCsvLine(headerLine));
             List<Location> batch = new ArrayList<>(BATCH_SIZE);
             long imported = 0;
             String line;
+            long lineNumber = 1;
 
             while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                if (line.isBlank()) continue;
                 List<String> columns = parseCsvLine(line);
                 Location location = toLocation(headers, columns);
                 if (location == null) {
-                    continue;
+                    throw new IOException("Missing or invalid location fields at CSV line " + lineNumber);
                 }
 
                 batch.add(location);
@@ -114,6 +136,7 @@ public class LocationCsvImporter implements CommandLineRunner {
                     saveBatch(batch);
                     imported += batch.size();
                     batch.clear();
+                    if (imported % 50000 == 0) log.info("Imported {} LGD rows so far", imported);
                 }
             }
 
@@ -122,6 +145,7 @@ public class LocationCsvImporter implements CommandLineRunner {
                 imported += batch.size();
             }
 
+            if (imported == 0) throw new IOException("Location CSV contains no valid locations");
             log.info("Imported {} LGD location rows", imported);
         }
     }

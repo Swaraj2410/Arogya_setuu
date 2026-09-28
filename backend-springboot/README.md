@@ -268,16 +268,16 @@ The official source is Local Government Directory (LGD), Ministry of Panchayati 
 Beginner import steps:
 
 1. Download/export the complete LGD states, districts, sub-districts, and villages CSV.
-2. Put it outside git, for example:
+2. Put it in the backend's ignored data folder:
 
 ```text
-/Users/shwet/Downloads/lgd_locations.csv
+backend-springboot/data/lgd_locations.csv
 ```
 
 3. In `src/main/resources/application-local.properties`, set:
 
 ```properties
-app.locations.import-csv=/Users/shwet/Downloads/lgd_locations.csv
+app.locations.import-csv=data/lgd_locations.csv
 app.locations.force-import=false
 ```
 
@@ -287,13 +287,25 @@ app.locations.force-import=false
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-5. After the import finishes once, either keep `force-import=false` or comment out `app.locations.import-csv`. If you want to replace the location table with a newer LGD CSV later, set:
+5. Keep `force-import=false`. The importer records a SHA-256 checksum and imported row count in `location_imports`. It replaces old sample locations on the first run, imports changed CSV files automatically, and skips an unchanged dataset on subsequent starts. An empty/recreated location table is repopulated automatically. Only location reference data is replaced; patient and appointment records are preserved. Invalid CSV rows roll back the import.
+
+Run from the `backend-springboot` directory so the default relative CSV path resolves correctly. On Windows use forward slashes in properties paths. The CSV is ignored by Git, so copy it separately to new installations. Only locations present in the supplied dataset appear in the dropdowns.
+
+To explicitly reload an unchanged CSV, set:
 
 ```properties
 app.locations.force-import=true
 ```
 
 Then run the backend once and set it back to `false`.
+
+After the import finishes and the backend is ready, verify the live location API against the CSV from `backend-springboot`:
+
+```bash
+python data-check.py
+```
+
+This read-only check compares every state and district list, plus one complete taluka/village branch per state, and checks that unknown parent codes return no options.
 
 ## Appointment Booking Flow
 
